@@ -1,0 +1,21 @@
+{
+  "name": "monitor-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "dev:sdk": "pnpm --filter @monitor-platform/sdk dev",
+    "dev:platform": "pnpm --filter @monitor-platform/platform dev",
+    "build:sdk": "pnpm --filter @monitor-platform/sdk build"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+} 
