@@ -4,5 +4,4 @@ class WebSDK {
   }
 }
 
-
 export default WebSDK;
