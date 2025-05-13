@@ -9,3 +9,5 @@ export enum EventType {
 }
 
 export const SDK_USER_ID = "__sdk_user_id__";
+
+export const SDK_DEVICE_INFO = "__sdk_device_info__";

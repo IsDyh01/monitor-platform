@@ -1,7 +1,7 @@
 // 数据上报参数类型
 interface UserInterface {
   user_id: string;
-  device_name: string;
+  device: string;
   browser: string;
   os: string;
 }

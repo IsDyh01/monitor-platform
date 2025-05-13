@@ -1,10 +1,11 @@
-import { SDK_USER_ID } from "./constance";
+import { SDK_DEVICE_INFO, SDK_USER_ID } from "./constance";
 import { MonitorCore } from "./core/index";
 import { BehaviorMonitor } from "./plugins/behavior/index";
 import { ErrorMonitor } from "./plugins/error/index";
 import { PerformanceMonitor } from "./plugins/performance/index";
 import getStorage from "./utils/storage";
 import { v4 as uuidv4 } from "uuid";
+import { UAParser } from "ua-parser-js";
 interface WebSDKOptions {
   project_id: string; // 项目id
   user_id?: string; // 用户id 如果不传 sdk自动生成
@@ -12,7 +13,7 @@ interface WebSDKOptions {
 
 interface UserInterface {
   user_id: string;
-  device_name: string;
+  device: string;
   browser: string;
   os: string;
 }
@@ -53,9 +54,11 @@ class WebSDK {
   // 初始化时获取用户信息
   getUserInfo(): UserInterface {
     let user_id;
-    let device_name = "";
+    let device = "";
     let browser = "";
     let os = "";
+
+    // 获取用户id
     if (this.localStorage.getItem(SDK_USER_ID)) {
       user_id = this.localStorage.getItem(SDK_USER_ID);
     } else {
@@ -67,13 +70,35 @@ class WebSDK {
       this.localStorage.setItem(SDK_USER_ID, user_id);
     }
 
+    const deviceInfo = this.getDeviceInfo();
+    device = deviceInfo.device;
+    browser = deviceInfo.browser;
+    os = deviceInfo.os;
+
     return {
       user_id,
-      device_name,
+      device,
       browser,
       os,
     };
   }
-}
 
+  // 获取用户设备信息
+  getDeviceInfo() {
+    if (this.localStorage.getItem(SDK_DEVICE_INFO)) {
+      return this.localStorage.getItem(SDK_DEVICE_INFO);
+    }
+    const userAgent = navigator.userAgent;
+
+    const { os, browser, device } = UAParser(userAgent);
+    const info = {
+      os: os.name,
+      browser: browser.name,
+      device: device.vendor + "-" + device.model,
+    };
+    this.localStorage.setItem(SDK_DEVICE_INFO, info);
+
+    return info;
+  }
+}
 export default WebSDK;
