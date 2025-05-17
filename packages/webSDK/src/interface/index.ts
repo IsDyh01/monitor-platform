@@ -1,61 +1,42 @@
-/**
- * 监控数据类型：所有上报数据必须包含的基础字段
- */
-export interface BaseTrackingData {
-  /** 监控类型标识 */
-  type: "performance" | "error" | "behavior";
-  /** 发生时间戳 */
-  timestamp: number;
-  /** 页面URL */
-  pageUrl: string;
-  /** 用户ID（可选） */
-  userId?: string;
-  /** 自定义扩展数据 */
-  extra?: Record<string, unknown>;
+/** 事件类型枚举 */
+export type EventType = 
+  | "performance"
+  | "behavior"
+  | "error"
+  | "custom";
+
+/** 用户信息 */
+export interface User {
+  user_id: string;      // 必填，用户唯一标识
+  device?: string;      // 可选，设备名称（如 "mac-os"）
+  browser?: string;     // 可选，浏览器（如 "Chrome 120"）
+  os?: string;          // 可选，操作系统（如 "iOS 16.4.1"）
 }
 
-/** 性能监控数据 */
-export interface PerformanceData extends BaseTrackingData {
-  type: "performance";
-  /** 性能指标名称 */
-  metric: "TTI" | "FCP" | "LCP" | "CLS" | string;
-  /** 测量值 */
-  value: number;
-  /** 资源类型（仅资源监控时存在） */
-  resourceType?: "script" | "css" | "image";
+/** 上下文信息 */
+export interface Context {
+  page_url: string;     // 必填，当前页面完整URL
+  referrer?: string;    // 可选，来源页面URL
+  page_title?: string;  // 可选，页面标题
 }
 
-/** 错误监控数据 */
-export interface ErrorData extends BaseTrackingData {
-  type: "error";
-  /** 错误信息 */
-  message: string;
-  /** 错误堆栈 */
-  stack?: string;
-  /** 错误代码 */
-  errorCode?: number;
-  /** 错误等级 */
-  level?: "fatal" | "error" | "warning";
+/** 负载数据基类（所有 payload 必须包含 `metric` 字段） */
+interface BasePayload {
+  metric: string;       // 必填，指标类型（如 "fcp", "lcp"）
+  [key: string]: any;   // 允许扩展其他动态字段
 }
 
-/** 用户行为数据 */
-export interface BehaviorData extends BaseTrackingData {
-  type: "behavior";
-  /** 行为类型 */
-  action: "click" | "scroll" | "navigation" | string;
-  /** 目标元素（可选） */
-  targetElement?: string;
-  /** 附加参数 */
-  params?: Record<string, unknown>;
+// ------------------------- 上报数据主类型 -------------------------
+/** 完整上报数据结构 */
+export interface ReportData {
+  project_id: string;    // 项目唯一ID
+  id: string;            // 事件唯一ID（SDK自动生成UUIDv4）
+  event_type: EventType; // 事件类型
+  timestamp: number;     // Unix毫秒时间戳
+  user: User;            // 用户标识信息
+  context: Context;      // 环境上下文
+  payload: BasePayload;  // 具体指标数据
 }
-
-/** 通用数据格式 */
-export type TrackingData =
-  | PerformanceData
-  | ErrorData
-  | BehaviorData
-  | BaseTrackingData;
-
 /**
  * 上报策略配置
  */

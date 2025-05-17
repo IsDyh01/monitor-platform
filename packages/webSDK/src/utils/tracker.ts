@@ -1,4 +1,4 @@
-import type { TrackingData, TrackConfig } from "../interface/index";
+import type { ReportData, TrackConfig } from "../interface/index";
 class Tracker {
   url: string;
   trackConfig: TrackConfig;
@@ -22,23 +22,23 @@ class Tracker {
     };
   }
   // 直接上报队列（优先级0）
-  private immediateQueue: TrackingData[] = [];
+  private immediateQueue: ReportData[] = [];
   // 空闲处理队列
-  private idleQueue: TrackingData[] = [];
+  private idleQueue: ReportData[] = [];
   // 批量处理队列
-  private batchQueue: TrackingData[] = [];
+  private batchQueue: ReportData[] = [];
   private isIdleScheduled = false;
   private retryMap = new Map<string, number>(); // 重试次数
   private batchTimer?: ReturnType<typeof setTimeout>; // 批量定时器
   private idleInterval?: ReturnType<typeof setInterval>; // 空闲定时器
 
-  generateDataHash(data: TrackingData[]): string {
+  generateDataHash(data: ReportData[]): string {
     // 生成稳定数据指纹（根据业务需求调整）
     return data
       .map(
         (item) =>
           // 提取核心特征（示例：事件类型+时间戳+用户ID）
-          `${item.type}:${item.timestamp || Date.now()}|${item.userId || "unknown"}`,
+          `${item.event_type}:${item.timestamp || Date.now()}|${item.id || "unknown"}`,
       )
       .join("|");
   }
@@ -125,11 +125,11 @@ class Tracker {
     }
   }
 
-  send(data: TrackingData) {
+  send(data: ReportData) {
     let queueType: string = "idle";
-    if (data.type === "error") {
+    if (data.event_type === "error") {
       queueType = "immediate";
-    } else if (data.type === "performance") {
+    } else if (data.event_type === "performance") {
       queueType = "batch";
     } else {
       queueType = "idle";
@@ -151,7 +151,7 @@ class Tracker {
     }
   }
   //  发送数据，包含重试逻辑
-  async sendWithRetry(data: TrackingData[]) {
+  async sendWithRetry(data: ReportData[]) {
     try {
       const success = await this.beacon(this.url, data);
       if (success) {
@@ -175,7 +175,7 @@ class Tracker {
     }
   }
   // 对发送逻辑做兼容处理
-  beacon = (url: string, data: TrackingData[]) => {
+  beacon = (url: string, data: ReportData[]) => {
     return new Promise((resolve) => {
       if (navigator.sendBeacon(url, JSON.stringify(data))) {
         return resolve(true);
