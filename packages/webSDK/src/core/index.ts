@@ -1,53 +1,30 @@
+import { StaticData, Context, ReportData, EventType } from "../interface";
 import Tracker from "../utils/tracker";
+import { v4 as uuidv4 } from "uuid";
 // 数据上报参数类型
-interface UserInterface {
-  user_id: string;
-  device: string;
-  browser: string;
-  os: string;
-}
-
-interface ContextInterface {
-  page_url: string; // 当前页面url
-  page_title: string; // 当前页面标题
-  referrer: string; // 来源页面url
-}
-
-interface DataInterface {
-  project_id: string; // 项目id
-  event_type: string; // 事件类型
-  timestamp: number; // 上报时间
-  user: UserInterface; // 用户相关标识
-  context: ContextInterface; // 上下文信息
-  payload: any; // 与event_type相关的上报数据
-}
-
-interface StaticDataInterface {
-  project_id: string; // 项目id
-  user: UserInterface;
-}
 
 export default class MonitorCore {
-  private staticData: StaticDataInterface;
+  private staticData: StaticData;
   private tracker: Tracker;
-  constructor(staticData: StaticDataInterface) {
+  constructor(staticData: StaticData) {
     this.staticData = staticData;
     this.tracker = new Tracker();
   }
 
   // 数据上报
-  report(event_type: string, payload: any) {
+  report(event_type: EventType, payload: any) {
     // 先对数据进行格式化
     const data = this.formatData(event_type, payload);
     // 在进行上报
   }
 
   // 格式化数据
-  formatData(event_type: string, payload: any): DataInterface {
+  formatData(event_type: EventType, payload: any): ReportData {
     const timestamp = this.getTimestamp();
     const context = this.getContxt();
     return {
       project_id: this.staticData.project_id,
+      id: this.getEventId(), // 每个事件的id
       user: this.staticData.user,
       event_type,
       timestamp: timestamp,
@@ -61,8 +38,13 @@ export default class MonitorCore {
     return Date.now();
   }
 
+  // 获取事件uuid
+  getEventId(): string {
+    return uuidv4();
+  }
+
   // 获取上下文信息
-  getContxt(): ContextInterface {
+  getContxt(): Context {
     return {
       page_url: document.location.href,
       page_title: document.title,

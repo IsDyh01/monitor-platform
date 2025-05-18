@@ -6,28 +6,13 @@ import { PerformanceMonitor } from "./plugins/performance/index";
 import getStorage from "./utils/storage";
 import { v4 as uuidv4 } from "uuid";
 import { UAParser } from "ua-parser-js";
-interface WebSDKOptions {
-  project_id: string; // 项目id
-  user_id?: string; // 用户id 如果不传 sdk自动生成
-}
-
-interface UserInterface {
-  user_id: string;
-  device: string;
-  browser: string;
-  os: string;
-}
-
-interface StaticData {
-  project_id: string; // 项目id
-  user: UserInterface;
-}
+import { WebSDKOptions, User, StaticData } from "./interface";
 
 class WebSDK {
   private options: WebSDKOptions;
   private sessionStorage: ReturnType<typeof getStorage>;
   private localStorage: ReturnType<typeof getStorage>;
-  private staticData: StaticData;
+  private staticData: StaticData; // 静态数据 可以在初始化sdk时直接获取并存储 后续不需要改变
   #monitorCoreInstance: MonitorCore; // 监控核心实例 私有字段 需要把内核实例传递到插件中，插件中需要使用内核的方法
   constructor(options: WebSDKOptions) {
     this.options = options;
@@ -53,7 +38,7 @@ class WebSDK {
   }
 
   // 初始化时获取用户信息
-  private getUserInfo(): UserInterface {
+  private getUserInfo(): User {
     let user_id;
     let device = "";
     let browser = "";
