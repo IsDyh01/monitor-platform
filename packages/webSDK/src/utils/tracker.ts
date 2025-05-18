@@ -2,8 +2,8 @@ import type { ReportData, TrackConfig } from "../interface/index";
 class Tracker {
   url: string;
   trackConfig: TrackConfig;
-  constructor() {
-    this.url = "";
+  constructor(url: string) {
+    this.url = url;
     this.trackConfig = {
       idle: {
         timeout: 1000, // 空闲处理超时时间：1秒
@@ -21,6 +21,7 @@ class Tracker {
       maxRetries: 3, // 最多重试 3 次
       failedRetryDelay: 5 * 60 * 1000, // 重试间隔：五分钟
     };
+    this.init({ url: this.url, trackConfig: this.trackConfig });
   }
   // 直接上报队列（优先级0）
   private immediateQueue: ReportData[] = [];

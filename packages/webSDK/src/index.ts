@@ -24,7 +24,10 @@ class WebSDK {
       user: this.getUserInfo(),
     };
     // 初始化内核
-    this.#monitorCoreInstance = new MonitorCore(this.staticData);
+    this.#monitorCoreInstance = new MonitorCore(
+      this.options.url,
+      this.staticData
+    );
 
     // 初始化监控插件
     new PerformanceMonitor(this.#monitorCoreInstance);

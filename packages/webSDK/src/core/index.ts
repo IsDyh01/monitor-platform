@@ -6,9 +6,9 @@ import { v4 as uuidv4 } from "uuid";
 export default class MonitorCore {
   private staticData: StaticData;
   private tracker: Tracker;
-  constructor(staticData: StaticData) {
+  constructor(url: string, staticData: StaticData) {
     this.staticData = staticData;
-    this.tracker = new Tracker();
+    this.tracker = new Tracker(url);
   }
 
   // 数据上报
@@ -16,15 +16,17 @@ export default class MonitorCore {
     // 先对数据进行格式化
     const data = this.formatData(event_type, payload);
     // 在进行上报
+    this.tracker.send(data);
   }
 
   // 格式化数据
   formatData(event_type: EventType, payload: any): ReportData {
     const timestamp = this.getTimestamp();
     const context = this.getContxt();
+    const event_id = this.getEventId();
     return {
       project_id: this.staticData.project_id,
-      id: this.getEventId(), // 每个事件的id
+      id: event_id, // 每个事件的id
       user: this.staticData.user,
       event_type,
       timestamp: timestamp,
