@@ -19,6 +19,7 @@ class Tracker {
         retryDelay: 1000, // 重试间隔：1秒
       },
       maxRetries: 3, // 最多重试 3 次
+      failedRetryDelay: 5 * 60 * 1000, // 重试间隔：五分钟
     };
   }
   // 直接上报队列（优先级0）
@@ -31,6 +32,7 @@ class Tracker {
   private retryMap = new Map<string, number>(); // 重试次数
   private batchTimer?: ReturnType<typeof setTimeout>; // 批量定时器
   private idleInterval?: ReturnType<typeof setInterval>; // 空闲定时器
+  private retryFailedDataTimer?: ReturnType<typeof setInterval>; // 重试定时器
 
   generateDataHash(data: ReportData[]): string {
     // 生成稳定数据指纹（根据业务需求调整）
@@ -46,10 +48,16 @@ class Tracker {
   init(config: { url: string; trackConfig?: Partial<TrackConfig> }) {
     this.url = config.url;
     Object.assign(this.trackConfig, config.trackConfig);
+    // 初始化失败数据重试定时器
+    this.setupRetryScheduler();
+    // 检测是本地存储是否有失败数据，如果有则上报
+    this.retryFailedData();
   }
+  // 销毁定时器
   destroy() {
     clearInterval(this.idleInterval);
     clearTimeout(this.batchTimer);
+    clearInterval(this.retryFailedDataTimer);
   }
   //立即上报，如错误检测等比较紧急的数据
   flushImmediate() {
@@ -78,6 +86,10 @@ class Tracker {
           if (data) {
             this.sendWithRetry(data);
           }
+        } else {
+          // 如果没有数据，清除定时器
+          clearInterval(this.idleInterval);
+          this.idleInterval = undefined;
         }
       }, fallbackInterval);
     }
@@ -112,14 +124,13 @@ class Tracker {
       return;
     }
     const batchSize = this.trackConfig.batch?.maxQueueSize || 20;
-    const batchData = this.batchQueue.splice(0, batchSize);
-    if (batchData.length > 0) {
+    if (this.batchQueue.length >= batchSize) {
+      const batchData = this.batchQueue.splice(0, batchSize);
       this.sendWithRetry(batchData);
     }
     // 设置定时器，定时上报
     if (!this.batchTimer) {
       this.batchTimer = setTimeout(() => {
-        this.batchTimer = undefined;
         this.flushBatch();
       }, this.trackConfig.batch?.delay || 5000);
     }
@@ -171,6 +182,10 @@ class Tracker {
         setTimeout(() => {
           this.sendWithRetry(data);
         }, this.trackConfig.realtime?.retryDelay || 1000);
+      } else {
+        // 超过最大重试次数，保存到本地
+        this.saveFailedData(data);
+        console.error("超过最大重试次数，数据已保存到本地");
       }
     }
   }
@@ -205,5 +220,55 @@ class Tracker {
       }
     });
   };
+  // 发送失败，保存到本地
+  private saveFailedData(data: ReportData[]) {
+    const STORAGE_KEY = "tracker_failed_data";
+    try {
+      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const newData = [...existing, ...data];
+
+      // 防止存储超过 1MB（localStorage 上限通常为 5MB）
+      const encoder = new TextEncoder();
+      const byteLength = encoder.encode(JSON.stringify(newData)).length;
+      if (byteLength > 1024 * 1024) {
+        console.warn("失败数据超过存储限制，丢弃最早数据");
+        newData.splice(0, Math.floor(newData.length / 4));
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    } catch (e) {
+      console.error("本地存储失败:", e);
+    }
+  }
+  // 从本地存储中获取失败数据并且上报
+  private async retryFailedData() {
+    const STORAGE_KEY = "tracker_failed_data";
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      if (data.length > 0) {
+        const success = await this.beacon(this.url, data);
+        if (success) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    } catch (e) {
+      console.error("读取本地存储失败:", e);
+    }
+  }
+  // 设置定时器，定时上报失败数据
+  private setupRetryScheduler() {
+    // 监听网络状态变化
+    window.addEventListener("online", () => {
+      this.retryFailedData();
+    });
+    if (this.retryFailedDataTimer) {
+      clearInterval(this.retryFailedDataTimer);
+    }
+    this.retryFailedDataTimer = setInterval(
+      () => {
+        this.retryFailedData();
+      },
+      this.trackConfig.failedRetryDelay || 5 * 60 * 1000,
+    );
+  }
 }
 export default new Tracker();
