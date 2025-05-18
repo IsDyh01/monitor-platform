@@ -1,5 +1,5 @@
 import { SDK_DEVICE_INFO, SDK_USER_ID } from "./constance";
-import { MonitorCore } from "./core/index";
+import MonitorCore from "./core/index";
 import { BehaviorMonitor } from "./plugins/behavior/index";
 import { ErrorMonitor } from "./plugins/error/index";
 import { PerformanceMonitor } from "./plugins/performance/index";
@@ -28,6 +28,7 @@ class WebSDK {
   private sessionStorage: ReturnType<typeof getStorage>;
   private localStorage: ReturnType<typeof getStorage>;
   private staticData: StaticData;
+  #monitorCoreInstance: MonitorCore; // 监控核心实例 私有字段 需要把内核实例传递到插件中，插件中需要使用内核的方法
   constructor(options: WebSDKOptions) {
     this.options = options;
     this.sessionStorage = getStorage("session");
@@ -38,21 +39,21 @@ class WebSDK {
       user: this.getUserInfo(),
     };
     // 初始化内核
-    new MonitorCore(this.staticData);
+    this.#monitorCoreInstance = new MonitorCore(this.staticData);
 
     // 初始化监控插件
-    new PerformanceMonitor();
-    new ErrorMonitor();
-    new BehaviorMonitor();
+    new PerformanceMonitor(this.#monitorCoreInstance);
+    new ErrorMonitor(this.#monitorCoreInstance);
+    new BehaviorMonitor(this.#monitorCoreInstance);
   }
 
   // 获取项目id
-  getProjectId() {
+  private getProjectId() {
     return this.options.project_id;
   }
 
   // 初始化时获取用户信息
-  getUserInfo(): UserInterface {
+  private getUserInfo(): UserInterface {
     let user_id;
     let device = "";
     let browser = "";
@@ -84,7 +85,7 @@ class WebSDK {
   }
 
   // 获取用户设备信息
-  getDeviceInfo() {
+  private getDeviceInfo() {
     if (this.localStorage.getItem(SDK_DEVICE_INFO)) {
       return this.localStorage.getItem(SDK_DEVICE_INFO);
     }

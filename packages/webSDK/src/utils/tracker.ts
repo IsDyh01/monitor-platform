@@ -40,7 +40,7 @@ class Tracker {
       .map(
         (item) =>
           // 提取核心特征（示例：事件类型+时间戳+用户ID）
-          `${item.event_type}:${item.timestamp || Date.now()}|${item.id || "unknown"}`,
+          `${item.event_type}:${item.timestamp || Date.now()}|${item.id || "unknown"}`
       )
       .join("|");
   }
@@ -80,7 +80,7 @@ class Tracker {
         if (this.idleQueue.length > 0) {
           const data = this.idleQueue.splice(
             0,
-            this.trackConfig.idle?.maxTasksPerIdle || 5,
+            this.trackConfig.idle?.maxTasksPerIdle || 5
           );
           // 处理数据
           if (data) {
@@ -109,7 +109,7 @@ class Tracker {
             this.sendWithRetry(task);
           }
         },
-        { timeout: idleTime },
+        { timeout: idleTime }
       );
     } finally {
       this.isIdleScheduled = false;
@@ -133,9 +133,9 @@ class Tracker {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
     }
-      this.batchTimer = setTimeout(() => {
-        this.flushBatch();
-      }, this.trackConfig.batch?.delay || 5000);
+    this.batchTimer = setTimeout(() => {
+      this.flushBatch();
+    }, this.trackConfig.batch?.delay || 5000);
   }
 
   send(data: ReportData) {
@@ -269,8 +269,8 @@ class Tracker {
       () => {
         this.retryFailedData();
       },
-      this.trackConfig.failedRetryDelay || 5 * 60 * 1000,
+      this.trackConfig.failedRetryDelay || 5 * 60 * 1000
     );
   }
 }
-export default new Tracker();
+export default Tracker;

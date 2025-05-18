@@ -1,3 +1,4 @@
+import Tracker from "../utils/tracker";
 // 数据上报参数类型
 interface UserInterface {
   user_id: string;
@@ -26,10 +27,19 @@ interface StaticDataInterface {
   user: UserInterface;
 }
 
-export class MonitorCore {
+export default class MonitorCore {
   private staticData: StaticDataInterface;
+  private tracker: Tracker;
   constructor(staticData: StaticDataInterface) {
     this.staticData = staticData;
+    this.tracker = new Tracker();
+  }
+
+  // 数据上报
+  report(event_type: string, payload: any) {
+    // 先对数据进行格式化
+    const data = this.formatData(event_type, payload);
+    // 在进行上报
   }
 
   // 格式化数据
