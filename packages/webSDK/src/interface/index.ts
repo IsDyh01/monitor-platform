@@ -26,7 +26,7 @@ export interface Context {
 }
 
 /** 负载数据基类（所有 payload 必须包含 `metric` 字段） */
-interface BasePayload {
+export interface BasePayload {
   metric: string; // 必填，指标类型（如 "fcp", "lcp"）
   [key: string]: any; // 允许扩展其他动态字段
 }

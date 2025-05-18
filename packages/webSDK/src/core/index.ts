@@ -1,4 +1,4 @@
-import { StaticData, Context, ReportData } from "../interface";
+import { StaticData, Context, ReportData, BasePayload } from "../interface";
 import { EventType } from "../constance";
 import Tracker from "../utils/tracker";
 import { v4 as uuidv4 } from "uuid";
@@ -13,7 +13,7 @@ export default class MonitorCore {
   }
 
   // 数据上报
-  report(event_type: EventType, payload: any) {
+  report(event_type: EventType, payload: BasePayload) {
     // 先对数据进行格式化
     const data = this.formatData(event_type, payload);
     // 在进行上报
