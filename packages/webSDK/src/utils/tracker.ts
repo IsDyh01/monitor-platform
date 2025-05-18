@@ -127,13 +127,15 @@ class Tracker {
     if (this.batchQueue.length >= batchSize) {
       const batchData = this.batchQueue.splice(0, batchSize);
       this.sendWithRetry(batchData);
+      return;
     }
     // 设置定时器，定时上报
-    if (!this.batchTimer) {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+    }
       this.batchTimer = setTimeout(() => {
         this.flushBatch();
       }, this.trackConfig.batch?.delay || 5000);
-    }
   }
 
   send(data: ReportData) {
