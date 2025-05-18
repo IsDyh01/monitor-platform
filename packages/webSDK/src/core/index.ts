@@ -1,4 +1,5 @@
-import { StaticData, Context, ReportData, EventType } from "../interface";
+import { StaticData, Context, ReportData } from "../interface";
+import { EventType } from "../constance";
 import Tracker from "../utils/tracker";
 import { v4 as uuidv4 } from "uuid";
 // 数据上报参数类型

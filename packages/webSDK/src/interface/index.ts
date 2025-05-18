@@ -1,3 +1,4 @@
+import { EventType } from "../constance";
 export interface WebSDKOptions {
   project_id: string; // 项目id
   url: string; // 上报服务器地址
@@ -8,9 +9,6 @@ export interface StaticData {
   project_id: string; // 项目id
   user: User;
 }
-
-/** 事件类型枚举 */
-export type EventType = "performance" | "behavior" | "error" | "custom";
 
 /** 用户信息 */
 export interface User {
