@@ -195,12 +195,12 @@ class Tracker {
   // 对发送逻辑做兼容处理
   beacon = (url: string, data: ReportData[]) => {
     return new Promise((resolve) => {
-      if (navigator.sendBeacon(url, JSON.stringify(data))) {
+      if (navigator.sendBeacon(url + '/report', JSON.stringify(data))) {
         return resolve(true);
       } else {
         // 兼容处理
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true); // 使用异步请求
+        xhr.open("POST", url + '/report', true); // 使用异步请求
         xhr.setRequestHeader("Content-Type", "application/json");
         // 处理响应
         xhr.onload = () => {

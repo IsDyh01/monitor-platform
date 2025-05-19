@@ -13,7 +13,7 @@ class WebSDK {
   private sessionStorage: ReturnType<typeof getStorage>;
   private localStorage: ReturnType<typeof getStorage>;
   private staticData: StaticData; // 静态数据 可以在初始化sdk时直接获取并存储 后续不需要改变
-  #monitorCoreInstance: MonitorCore; // 监控核心实例 私有字段 需要把内核实例传递到插件中，插件中需要使用内核的方法
+  monitorCoreInstance: MonitorCore; // 监控核心实例 私有字段 需要把内核实例传递到插件中，插件中需要使用内核的方法
   constructor(options: WebSDKOptions) {
     this.options = options;
     this.sessionStorage = getStorage("session");
@@ -24,15 +24,15 @@ class WebSDK {
       user: this.getUserInfo(),
     };
     // 初始化内核
-    this.#monitorCoreInstance = new MonitorCore(
+    this.monitorCoreInstance = new MonitorCore(
       this.options.url,
       this.staticData
     );
 
     // 初始化监控插件
-    new PerformanceMonitor(this.#monitorCoreInstance);
-    new ErrorMonitor(this.#monitorCoreInstance);
-    new BehaviorMonitor(this.#monitorCoreInstance);
+    new PerformanceMonitor(this.monitorCoreInstance);
+    new ErrorMonitor(this.monitorCoreInstance);
+    new BehaviorMonitor(this.monitorCoreInstance);
   }
 
   // 获取项目id
