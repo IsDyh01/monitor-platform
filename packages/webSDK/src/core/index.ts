@@ -1,3 +1,5 @@
+import { ReportData, EventType } from "../interface";
+import { v4 as uuidv4 } from "uuid";
 // 数据上报参数类型
 interface UserInterface {
   user_id: string;
@@ -12,16 +14,7 @@ interface ContextInterface {
   referrer: string; // 来源页面url
 }
 
-interface DataInterface {
-  project_id: string; // 项目id
-  event_type: string; // 事件类型
-  timestamp: number; // 上报时间
-  user: UserInterface; // 用户相关标识
-  context: ContextInterface; // 上下文信息
-  payload: any; // 与event_type相关的上报数据
-}
-
-interface StaticDataInterface {
+export interface StaticDataInterface {
   project_id: string; // 项目id
   user: UserInterface;
 }
@@ -33,12 +26,13 @@ export class MonitorCore {
   }
 
   // 格式化数据
-  formatData(event_type: string, payload: any): DataInterface {
+  formatData(event_type: EventType, payload: any): ReportData {
     const timestamp = this.getTimestamp();
     const context = this.getContxt();
     return {
       project_id: this.staticData.project_id,
       user: this.staticData.user,
+      id: uuidv4(), // 生成唯一ID
       event_type,
       timestamp: timestamp,
       context,
