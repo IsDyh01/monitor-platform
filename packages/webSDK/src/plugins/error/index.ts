@@ -15,6 +15,7 @@ export class ErrorMonitor {
     this.initResourceError();
     this.initPromiseError();
     this.initInterfaceError();
+    this.initXhrError();
   }
 
   //捕获同步js错误
@@ -112,4 +113,73 @@ export class ErrorMonitor {
       configurable: true,
     });
   }
-} 
+  //拦截 XMLHttpRequest
+  private initXhrError() {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    const self = this;
+    //拦截open，缓存method/url
+    (XMLHttpRequest.prototype as any).open = function(this: XMLHttpRequest, ...args: Parameters<XMLHttpRequest['open']>) {
+      const [method, url] = args;
+      (this as any).__method = args[0];
+      (this as any).__url = args[1];
+      return originalOpen.apply(this, args)
+    }
+    //拦截send，绑定事件
+    XMLHttpRequest.prototype.send = function(body?: any){
+      const xhr = this as XMLHttpRequest & { __method?: string; __url?: string };
+      const start = Date.now();
+      const onLoadend = () => {
+        const status = xhr.status;
+        //如果status >= 400 或 status === 0 (可能是跨域或网络错误)
+        if (status >= 400 || status === 0) {
+          const duration = Date.now() - start;
+          self.reportError({
+            type: status === 0 ? 'cors-error' : 'http-error',
+            url: xhr.__url || '',
+            method: xhr.__method || 'GET',
+            status: status === 0 ? undefined : status,
+            statusText: xhr.statusText || undefined,
+            duration,
+            timestamp: Date.now(),
+          });
+          cleanup();
+        };
+      }
+      const onError = () => {
+        const duration = Date.now() - start;
+        self.reportError({
+          type: 'http-error',
+          url: xhr.__url || '',
+          method: xhr.__method || 'GET',
+          duration,
+          timestamp: Date.now(),
+        });
+        cleanup();
+      };
+      const onTimeout = () => {
+        const duration = Date.now() - start;
+        self.reportError({
+          type: 'http-error',
+          url: xhr.__url || '',
+          method: xhr.__method || 'GET',
+          status: 0,
+          statusText: 'timeout',
+          duration,
+          timestamp: Date.now(),
+        });
+        cleanup();
+      };
+      const cleanup = () => {
+        xhr.removeEventListener('loadend', onLoadend);
+        xhr.removeEventListener('error', onError);
+        xhr.removeEventListener('timeout', onTimeout);
+      };
+      xhr.addEventListener('loadend', onLoadend);
+      xhr.addEventListener('error', onError);
+      xhr.addEventListener('timeout', onTimeout);
+
+      return originalSend.apply(this, arguments as any);
+    }
+  }
+}
