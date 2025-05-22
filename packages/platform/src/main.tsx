@@ -6,10 +6,13 @@ import WebSDK from "@monitor-platform/sdk";
 
 const config = {
   project_id: "1234567890",
+  url: 'http://localhost:3000/'
 };
 
 const webSDK = new WebSDK(config);
 console.log(webSDK);
+
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

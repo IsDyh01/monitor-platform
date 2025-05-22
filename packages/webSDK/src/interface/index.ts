@@ -1,5 +1,14 @@
-/** 事件类型枚举 */
-export type EventType = "performance" | "behavior" | "error" | "custom";
+import { EventType } from "../constance";
+export interface WebSDKOptions {
+  project_id: string; // 项目id
+  url: string; // 上报服务器地址
+  user_id?: string; // 用户id 如果不传 sdk自动生成
+}
+
+export interface StaticData {
+  project_id: string; // 项目id
+  user: User;
+}
 
 /** 用户信息 */
 export interface User {
@@ -12,12 +21,12 @@ export interface User {
 /** 上下文信息 */
 export interface Context {
   page_url: string; // 必填，当前页面完整URL
-  referrer?: string; // 可选，来源页面URL
+  referrer: string; // 必填，来源页面URL
   page_title?: string; // 可选，页面标题
 }
 
 /** 负载数据基类（所有 payload 必须包含 `metric` 字段） */
-interface BasePayload {
+export interface BasePayload {
   metric: string; // 必填，指标类型（如 "fcp", "lcp"）
   [key: string]: any; // 允许扩展其他动态字段
 }
