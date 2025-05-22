@@ -9,6 +9,7 @@
     "lint": "pnpm -r lint",
     "dev:sdk": "pnpm --filter @monitor-platform/sdk dev",
     "dev:platform": "pnpm --filter @monitor-platform/platform dev",
+    "dev:server": "pnpm --filter @monitor-platform/server dev",
     "build:sdk": "pnpm --filter @monitor-platform/sdk build",
     "clean:modules": "rm -rf node_modules && find ./packages -type d -name 'node_modules' -exec rm -rf {} +"
   },

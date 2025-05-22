@@ -1,9 +1,12 @@
+import MonitorCore from "../../core";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
-  constructor(options: ErrorMonitorOptions) {
+  private sdkCoreInstance: MonitorCore; // 监控核心实例
+  constructor(sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
+    this.sdkCoreInstance = sdkCoreInstance;
     // 初始化错误监控
     if(!options || typeof options.reportError !== "function"){
       throw new Error("[ErrorMonitor] 必须传入 reportError 方法");
@@ -183,3 +186,4 @@ export class ErrorMonitor {
     }
   }
 }
+

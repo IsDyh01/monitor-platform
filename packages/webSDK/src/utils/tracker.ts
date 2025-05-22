@@ -2,8 +2,8 @@ import type { ReportData, TrackConfig } from "../interface/index";
 class Tracker {
   url: string;
   trackConfig: TrackConfig;
-  constructor() {
-    this.url = "";
+  constructor(url: string) {
+    this.url = url;
     this.trackConfig = {
       idle: {
         timeout: 1000, // 空闲处理超时时间：1秒
@@ -21,6 +21,7 @@ class Tracker {
       maxRetries: 3, // 最多重试 3 次
       failedRetryDelay: 5 * 60 * 1000, // 重试间隔：五分钟
     };
+    this.init({ url: this.url, trackConfig: this.trackConfig });
   }
   // 直接上报队列（优先级0）
   private immediateQueue: ReportData[] = [];
@@ -40,7 +41,7 @@ class Tracker {
       .map(
         (item) =>
           // 提取核心特征（示例：事件类型+时间戳+用户ID）
-          `${item.event_type}:${item.timestamp || Date.now()}|${item.id || "unknown"}`,
+          `${item.event_type}:${item.timestamp || Date.now()}|${item.id || "unknown"}`
       )
       .join("|");
   }
@@ -80,7 +81,7 @@ class Tracker {
         if (this.idleQueue.length > 0) {
           const data = this.idleQueue.splice(
             0,
-            this.trackConfig.idle?.maxTasksPerIdle || 5,
+            this.trackConfig.idle?.maxTasksPerIdle || 5
           );
           // 处理数据
           if (data) {
@@ -109,7 +110,7 @@ class Tracker {
             this.sendWithRetry(task);
           }
         },
-        { timeout: idleTime },
+        { timeout: idleTime }
       );
     } finally {
       this.isIdleScheduled = false;
@@ -133,9 +134,9 @@ class Tracker {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
     }
-      this.batchTimer = setTimeout(() => {
-        this.flushBatch();
-      }, this.trackConfig.batch?.delay || 5000);
+    this.batchTimer = setTimeout(() => {
+      this.flushBatch();
+    }, this.trackConfig.batch?.delay || 5000);
   }
 
   send(data: ReportData) {
@@ -194,12 +195,12 @@ class Tracker {
   // 对发送逻辑做兼容处理
   beacon = (url: string, data: ReportData[]) => {
     return new Promise((resolve) => {
-      if (navigator.sendBeacon(url, JSON.stringify(data))) {
+      if (navigator.sendBeacon(url + '/report', JSON.stringify(data))) {
         return resolve(true);
       } else {
         // 兼容处理
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true); // 使用异步请求
+        xhr.open("POST", url + '/report', true); // 使用异步请求
         xhr.setRequestHeader("Content-Type", "application/json");
         // 处理响应
         xhr.onload = () => {
@@ -269,8 +270,8 @@ class Tracker {
       () => {
         this.retryFailedData();
       },
-      this.trackConfig.failedRetryDelay || 5 * 60 * 1000,
+      this.trackConfig.failedRetryDelay || 5 * 60 * 1000
     );
   }
 }
-export default new Tracker();
+export default Tracker;
