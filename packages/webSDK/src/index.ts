@@ -31,7 +31,17 @@ class WebSDK {
 
     // 初始化监控插件
     new PerformanceMonitor(this.monitorCoreInstance);
-    new ErrorMonitor(this.monitorCoreInstance);
+    new ErrorMonitor(this,this.monitorCoreInstance,{
+      reportError: payload => {
+        const enriched = {
+          ...payload,
+          projectId: this.options.project_id,
+          user: this.staticData.user,
+          metric:'error',
+        };
+        this.monitorCoreInstance.report('error',enriched);
+      }
+    });
     new BehaviorMonitor(this.monitorCoreInstance);
   }
 
