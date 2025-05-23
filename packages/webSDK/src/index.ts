@@ -10,8 +10,8 @@ import { WebSDKOptions, User, StaticData } from "./interface";
 
 class WebSDK {
   private options: WebSDKOptions;
-  private sessionStorage: ReturnType<typeof getStorage>;
-  private localStorage: ReturnType<typeof getStorage>;
+  sessionStorage: ReturnType<typeof getStorage>;
+  localStorage: ReturnType<typeof getStorage>;
   private staticData: StaticData; // 静态数据 可以在初始化sdk时直接获取并存储 后续不需要改变
   monitorCoreInstance: MonitorCore; // 监控核心实例 私有字段 需要把内核实例传递到插件中，插件中需要使用内核的方法
   constructor(options: WebSDKOptions) {
@@ -25,14 +25,15 @@ class WebSDK {
     };
     // 初始化内核
     this.monitorCoreInstance = new MonitorCore(
-      this.options.url,
-      this.staticData
+      this,
+      this.staticData,
+      this.options.url
     );
 
     // 初始化监控插件
-    new PerformanceMonitor(this.monitorCoreInstance);
-    new ErrorMonitor(this.monitorCoreInstance);
-    new BehaviorMonitor(this.monitorCoreInstance);
+    new PerformanceMonitor();
+    new ErrorMonitor();
+    new BehaviorMonitor();
   }
 
   // 获取项目id

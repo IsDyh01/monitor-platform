@@ -10,9 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.0.0",
+    "@monitor-platform/sdk": "workspace:*",
+    "add": "^2.0.6",
+    "antd": "^5.25.2",
+    "pnpm": "^10.11.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@monitor-platform/sdk": "workspace:*"
+    "react-router-dom": "^7.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
