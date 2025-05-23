@@ -3,6 +3,15 @@ import WebSDK from "../../index";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
+enum MetricsName {
+  JS_ERROR = 'js_error',
+  RESOURCE_ERROR = 'resource_error',
+  PROMISE_ERROR = 'promise_error',
+  INTERFACE_ERROR = 'interface_error',
+  XHR_ERROR = 'xhr_error',
+  NETWORK_ERROR = 'network_error',
+  HTTP_ERROR = 'http_error',
+}
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
   private options: ErrorMonitorOptions;
@@ -30,6 +39,10 @@ export class ErrorMonitor {
   private initJsError(){  
     window.onerror = (message, source, lineno, colno, error) => {
       const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      this.sdkInstance.monitorCoreInstance.report('error', {
+        metric: MetricsName.JS_ERROR
+      });
+      
       this.reportError({
         errorId,
         type: "js-error",
@@ -50,6 +63,10 @@ export class ErrorMonitor {
         const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         const target = event.target;
         if(target && (target.src || target.href)) {
+          this.sdkInstance.monitorCoreInstance.report('error', {
+            metric: MetricsName.RESOURCE_ERROR
+          });
+          
           this.reportError({
             errorId,
             type: "resource-error",
@@ -67,6 +84,10 @@ export class ErrorMonitor {
   private initPromiseError(){
     window.addEventListener("unhandledrejection",(event)=>{
       const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      this.sdkInstance.monitorCoreInstance.report('error', {
+        metric: MetricsName.PROMISE_ERROR
+      });
+      
       this.reportError({
         errorId,
         type: "promise-error",
@@ -87,6 +108,10 @@ export class ErrorMonitor {
         return target.apply(thisArg, args,)
         .then((response: Response) => {
           if(!response.ok) {
+            this.sdkInstance.monitorCoreInstance.report('error', {
+              metric: MetricsName.INTERFACE_ERROR
+            });
+            
             this.reportError({
               errorId,
               type:'interface-error',
@@ -103,6 +128,10 @@ export class ErrorMonitor {
           const duration = Date.now() -start;
           //fetch抛出的错误，可能是网络断开或cors拦截等
           const isCors = err instanceof TypeError && err.message === 'Failed to fetch';
+          this.sdkInstance.monitorCoreInstance.report('error', {
+            metric: MetricsName.NETWORK_ERROR
+          });
+
           this.reportError({
             errorId,
             type: isCors ? 'cors-error' : 'http-error',
@@ -142,6 +171,10 @@ export class ErrorMonitor {
         //如果status >= 400 或 status === 0 (可能是跨域或网络错误)
         if (status >= 400 || status === 0) {
           const duration = Date.now() - start;
+          self.sdkInstance.monitorCoreInstance.report('error', {
+            metric: MetricsName.NETWORK_ERROR
+          });
+
           self.reportError({
             type: status === 0 ? 'cors-error' : 'http-error',
             url: xhr.__url || '',
@@ -156,6 +189,10 @@ export class ErrorMonitor {
       }
       const onError = () => {
         const duration = Date.now() - start;
+        self.sdkInstance.monitorCoreInstance.report('error', {
+          metric: MetricsName.HTTP_ERROR
+        });
+
         self.reportError({
           type: 'http-error',
           url: xhr.__url || '',
@@ -167,6 +204,10 @@ export class ErrorMonitor {
       };
       const onTimeout = () => {
         const duration = Date.now() - start;
+        self.sdkInstance.monitorCoreInstance.report('error', {
+          metric: MetricsName.HTTP_ERROR
+        });
+
         self.reportError({
           type: 'http-error',
           url: xhr.__url || '',
