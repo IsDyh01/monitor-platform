@@ -2,14 +2,15 @@ import { StaticData, Context, ReportData, BasePayload } from "../interface";
 import { EventType } from "../constance";
 import Tracker from "../utils/tracker";
 import { v4 as uuidv4 } from "uuid";
+import WebSDK from "../index";
 // 数据上报参数类型
 
 export default class MonitorCore {
   private staticData: StaticData;
   private tracker: Tracker;
-  constructor(url: string, staticData: StaticData) {
+  constructor(sdkInstance: WebSDK, staticData: StaticData, url: string) {
     this.staticData = staticData;
-    this.tracker = new Tracker(url);
+    this.tracker = new Tracker(sdkInstance, { url });
   }
 
   // 数据上报

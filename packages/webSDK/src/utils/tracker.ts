@@ -1,9 +1,16 @@
+import WebSDK from "../index";
+import { TRACK_FAILED_DATA } from "../constance";
 import type { ReportData, TrackConfig } from "../interface/index";
+interface OptionsType {
+  url: string; // 上报地址
+}
 class Tracker {
-  url: string;
-  trackConfig: TrackConfig;
-  constructor(url: string) {
-    this.url = url;
+  private sdkInstance: WebSDK;
+  private options: OptionsType;
+  private trackConfig: TrackConfig;
+  constructor(sdkInstance: WebSDK, options: OptionsType) {
+    this.sdkInstance = sdkInstance;
+    this.options = options;
     this.trackConfig = {
       idle: {
         timeout: 1000, // 空闲处理超时时间：1秒
@@ -21,7 +28,7 @@ class Tracker {
       maxRetries: 3, // 最多重试 3 次
       failedRetryDelay: 5 * 60 * 1000, // 重试间隔：五分钟
     };
-    this.init({ url: this.url, trackConfig: this.trackConfig });
+    this.init({ trackConfig: this.trackConfig });
   }
   // 直接上报队列（优先级0）
   private immediateQueue: ReportData[] = [];
@@ -46,8 +53,7 @@ class Tracker {
       .join("|");
   }
   // 初始化配置
-  init(config: { url: string; trackConfig?: Partial<TrackConfig> }) {
-    this.url = config.url;
+  init(config: { trackConfig?: Partial<TrackConfig> }) {
     Object.assign(this.trackConfig, config.trackConfig);
     // 初始化失败数据重试定时器
     this.setupRetryScheduler();
@@ -56,7 +62,7 @@ class Tracker {
   }
   // 销毁定时器
   destroy() {
-    clearInterval(this.idleInterval);
+    // clearInterval(this.idleInterval);
     clearTimeout(this.batchTimer);
     clearInterval(this.retryFailedDataTimer);
   }
@@ -71,54 +77,54 @@ class Tracker {
     }
   }
   // 空闲上报器
-  setupIdleScheduler() {
-    if ("requestIdleCallback" in window) {
-      this.flushIdle(this.trackConfig.idle?.timeout);
-    } else if ("setInterval" in window) {
-      // 降级处理
-      const fallbackInterval = this.trackConfig.idle?.fallbackInterval || 1000;
-      this.idleInterval = setInterval(() => {
-        if (this.idleQueue.length > 0) {
-          const data = this.idleQueue.splice(
-            0,
-            this.trackConfig.idle?.maxTasksPerIdle || 5
-          );
-          // 处理数据
-          if (data) {
-            this.sendWithRetry(data);
-          }
-        } else {
-          // 如果没有数据，清除定时器
-          clearInterval(this.idleInterval);
-          this.idleInterval = undefined;
-        }
-      }, fallbackInterval);
-    }
-  }
+  // setupIdleScheduler() {
+  //   if ("requestIdleCallback" in window) {
+  //     this.flushIdle(this.trackConfig.idle?.timeout);
+  //   } else if ("setInterval" in window) {
+  //     // 降级处理
+  //     const fallbackInterval = this.trackConfig.idle?.fallbackInterval || 1000;
+  //     this.idleInterval = setInterval(() => {
+  //       if (this.idleQueue.length > 0) {
+  //         const data = this.idleQueue.splice(
+  //           0,
+  //           this.trackConfig.idle?.maxTasksPerIdle || 5
+  //         );
+  //         // 处理数据
+  //         if (data) {
+  //           this.sendWithRetry(data);
+  //         }
+  //       } else {
+  //         // 如果没有数据，清除定时器
+  //         clearInterval(this.idleInterval);
+  //         this.idleInterval = undefined;
+  //       }
+  //     }, fallbackInterval);
+  //   }
+  // }
 
-  flushIdle(idleTime: number = 3000) {
-    if (this.isIdleScheduled) {
-      return;
-    }
-    this.isIdleScheduled = true;
-    try {
-      requestIdleCallback(
-        () => {
-          const maxTasksPerIdle = this.trackConfig.idle?.maxTasksPerIdle || 5;
-          const task = this.idleQueue.splice(0, maxTasksPerIdle);
-          if (task.length > 0) {
-            this.sendWithRetry(task);
-          }
-        },
-        { timeout: idleTime }
-      );
-    } finally {
-      this.isIdleScheduled = false;
-      if (this.idleQueue.length > 0) {
-        this.flushIdle(idleTime);
-      }
-    }
-  }
+  // flushIdle(idleTime: number = 3000) {
+  //   if (this.isIdleScheduled) {
+  //     return;
+  //   }
+  //   this.isIdleScheduled = true;
+  //   try {
+  //     requestIdleCallback(
+  //       () => {
+  //         const maxTasksPerIdle = this.trackConfig.idle?.maxTasksPerIdle || 5;
+  //         const task = this.idleQueue.splice(0, maxTasksPerIdle);
+  //         if (task.length > 0) {
+  //           this.sendWithRetry(task);
+  //         }
+  //       },
+  //       { timeout: idleTime }
+  //     );
+  //   } finally {
+  //     this.isIdleScheduled = false;
+  //     if (this.idleQueue.length > 0) {
+  //       this.flushIdle(idleTime);
+  //     }
+  //   }
+  // }
 
   flushBatch() {
     if (this.batchQueue.length === 0) {
@@ -127,7 +133,21 @@ class Tracker {
     const batchSize = this.trackConfig.batch?.maxQueueSize || 20;
     if (this.batchQueue.length >= batchSize) {
       const batchData = this.batchQueue.splice(0, batchSize);
-      this.sendWithRetry(batchData);
+      // this.sendWithRetry(batchData);
+      if ("requestIdleCallback" in window) {
+        // 使用 requestIdleCallback 来处理批量数据
+        requestIdleCallback(
+          () => {
+            this.sendWithRetry(batchData);
+          },
+          { timeout: this.trackConfig.batch?.delay || 5000 }
+        ); // timeout参数表示最迟多少时间后必须执行回调(回退到宏任务)
+      } else {
+        // 使用 setTimeout 来处理批量数据
+        setTimeout(() => {
+          this.sendWithRetry(batchData);
+        }, this.trackConfig.batch?.delay || 5000);
+      }
       return;
     }
     // 设置定时器，定时上报
@@ -143,22 +163,27 @@ class Tracker {
     let queueType: string = "idle";
     if (data.event_type === "error") {
       queueType = "immediate";
-    } else if (data.event_type === "performance") {
+    }
+    // else if (data.event_type === "performance") {
+    //   queueType = "batch";
+    // }
+    else {
+      // queueType = "idle";
       queueType = "batch";
-    } else {
-      queueType = "idle";
     }
     // 立即上报
     if (queueType === "immediate") {
       this.immediateQueue.push(data);
       this.flushImmediate();
-    } else if (queueType === "idle") {
-      // 空闲上报
-      this.idleQueue.push(data);
-      if (!this.isIdleScheduled) {
-        this.setupIdleScheduler();
-      }
-    } else if (queueType === "batch") {
+    }
+    // else if (queueType === "idle") {
+    //   // 空闲上报
+    //   this.idleQueue.push(data);
+    //   if (!this.isIdleScheduled) {
+    //     this.setupIdleScheduler();
+    //   }
+    // }
+    else if (queueType === "batch") {
       // 批量上报
       this.batchQueue.push(data);
       this.flushBatch();
@@ -167,7 +192,7 @@ class Tracker {
   //  发送数据，包含重试逻辑
   async sendWithRetry(data: ReportData[]) {
     try {
-      const success = await this.beacon(this.url, data);
+      const success = await this.beacon(this.options.url, data);
       if (success) {
         // 清除重试次数
         const dataHash = this.generateDataHash(data);
@@ -194,13 +219,15 @@ class Tracker {
   }
   // 对发送逻辑做兼容处理
   beacon = (url: string, data: ReportData[]) => {
-    return new Promise((resolve) => {
-      if (navigator.sendBeacon(url + '/report', JSON.stringify(data))) {
+    return new Promise((resolve, reject) => {
+      if (navigator.sendBeacon(url + "/report", JSON.stringify(data))) {
+        console.log(1111);
+
         return resolve(true);
       } else {
         // 兼容处理
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", url + '/report', true); // 使用异步请求
+        xhr.open("POST", url + "/report", true); // 使用异步请求
         xhr.setRequestHeader("Content-Type", "application/json");
         // 处理响应
         xhr.onload = () => {
@@ -209,13 +236,15 @@ class Tracker {
             resolve(true);
           } else {
             console.error("上报失败", xhr.statusText);
-            resolve(false);
+            // resolve(false);
+            reject(false); // 抛出错误 可以被捕获
           }
         };
         // 处理错误和超时
         xhr.ontimeout = xhr.onerror = () => {
           console.error("上报失败", xhr.statusText);
-          resolve(false); // 必须确保 Promise 最终会 resolve
+          // resolve(false);
+          reject(false);
         };
         xhr.timeout = 5000; // 设置超时时间
         // 发送数据
@@ -225,9 +254,10 @@ class Tracker {
   };
   // 发送失败，保存到本地
   private saveFailedData(data: ReportData[]) {
-    const STORAGE_KEY = "tracker_failed_data";
     try {
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const existing =
+        this.sdkInstance.localStorage.getItem(TRACK_FAILED_DATA) || [];
+
       const newData = [...existing, ...data];
 
       // 防止存储超过 1MB（localStorage 上限通常为 5MB）
@@ -237,20 +267,20 @@ class Tracker {
         console.warn("失败数据超过存储限制，丢弃最早数据");
         newData.splice(0, Math.floor(newData.length / 4));
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      this.sdkInstance.localStorage.setItem(TRACK_FAILED_DATA, newData);
     } catch (e) {
       console.error("本地存储失败:", e);
     }
   }
   // 从本地存储中获取失败数据并且上报
   private async retryFailedData() {
-    const STORAGE_KEY = "tracker_failed_data";
     try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const data =
+        this.sdkInstance.localStorage.getItem(TRACK_FAILED_DATA) || [];
       if (data.length > 0) {
-        const success = await this.beacon(this.url, data);
+        const success = await this.beacon(this.options.url, data);
         if (success) {
-          localStorage.removeItem(STORAGE_KEY);
+          this.sdkInstance.localStorage.remove(TRACK_FAILED_DATA);
         }
       }
     } catch (e) {

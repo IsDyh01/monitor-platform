@@ -9,7 +9,10 @@ const getStorage = (type: "local" | "session") => {
       setItem: (key: string, value: any) => {
         origin.setItem(key, JSON.stringify(value));
       },
-      clean: () => {
+      remove: (key: string) => {
+        origin.removeItem(key);
+      },
+      clear: () => {
         origin.clear();
       },
     };
@@ -25,7 +28,10 @@ const getStorage = (type: "local" | "session") => {
       setItem: (key: string, value: any) => {
         origin.setItem(key, JSON.stringify(value));
       },
-      clean: () => {
+      remove: (key: string) => {
+        origin.removeItem(key);
+      },
+      clear: () => {
         origin.clear();
       },
     };
