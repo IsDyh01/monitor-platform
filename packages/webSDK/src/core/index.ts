@@ -2,16 +2,20 @@ import { StaticData, Context, ReportData, BasePayload } from "../interface";
 import { EventType } from "../constance";
 import Tracker from "../utils/tracker";
 import { v4 as uuidv4 } from "uuid";
+import { Action, ActionStack } from "../utils/ActionStack";
+import WebSDK from "../index";
 // 数据上报参数类型
 
 export default class MonitorCore {
   private staticData: StaticData;
+  private actionStack: ActionStack;//新增行为记录栈
   private tracker: Tracker;
-  constructor(url: string, staticData: StaticData) {
+  constructor(sdkInstance: WebSDK, staticData: StaticData, url: string) {
     this.staticData = staticData;
-    this.tracker = new Tracker(url);
+    this.tracker = new Tracker(sdkInstance, { url });
+    this.actionStack = new ActionStack(100);
   }
-
+  
   // 数据上报
   report(event_type: EventType, payload: BasePayload) {
     // 先对数据进行格式化
@@ -32,8 +36,28 @@ export default class MonitorCore {
       event_type,
       timestamp: timestamp,
       context,
-      payload,
+      payload: {
+        ...payload,
+        // 仅在错误上报时添加行为栈
+        ...(event_type === "error" ? { actionStack: this.getActionStack() } : {}),
+      },
     };
+  }
+
+  
+  // 获取行为栈用于错误上报
+  getActionStack(): Action[] {
+    return this.actionStack.getStack();
+  }
+
+  // 将行为添加到栈中
+  pushAction(mertic: string, data: any): void {
+    const action = {
+      mertic,
+      timestamp: Date.now(),
+      data,
+    };
+    this.actionStack.push(action);
   }
 
   // 获取当前时间戳
