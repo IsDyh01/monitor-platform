@@ -1,12 +1,17 @@
 import MonitorCore from "../../core";
+import WebSDK from "../../index";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
+  private options: ErrorMonitorOptions;
   private sdkCoreInstance: MonitorCore; // 监控核心实例
-  constructor(sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
+  private sdkInstance: WebSDK;
+  constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
     this.sdkCoreInstance = sdkCoreInstance;
+    this.options = options;
+    this.sdkInstance = sdkInstance;
     // 初始化错误监控
     if(!options || typeof options.reportError !== "function"){
       throw new Error("[ErrorMonitor] 必须传入 reportError 方法");
@@ -186,4 +191,3 @@ export class ErrorMonitor {
     }
   }
 }
-
