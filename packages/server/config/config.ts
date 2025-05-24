@@ -1,5 +1,15 @@
-const DBHOST='localhost'
+// #region 数据库地址及账号密码配置，别改！！！
+const DBHOST='47.98.115.184'
 const DBPORT='27017'
-const DBNAME='monitorData'
+const USER='admin'
+const PASSWORD='admin'
+const AUTHSOURCE='admin'
+//#endregion
 
-export {DBHOST,DBPORT,DBNAME}
+
+
+const DBNAME='monitorData'  // 数据库名称
+
+const COLLECTIONNAME='test'// 集合名称
+
+export {DBHOST,DBPORT,DBNAME,USER,PASSWORD,AUTHSOURCE,COLLECTIONNAME}
