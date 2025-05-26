@@ -77,19 +77,27 @@ export class ErrorMonitor {
   private initResourceError(){
     window.addEventListener(
       "error",
-      (event:any) => {
-        const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const target = event.target;
-        if(target && (target.src || target.href)) {
-          this.reportError({
-            errorId,
-            type: "resource-error",
-            tagName: target.tagName,
-            url: target.src || target.href,
-            outerHTML: target.outerHTML,
-            timestamp: Date.now(),
-          });
+      (event:Event) => {
+        const target = event.target as HTMLElement;
+        const url = (target as any).src || (target as any).href;
+        if(!url){
+          return;
         }
+        const type = MetricsName.RESOURCE_ERROR;
+        const rawCtx = [MetricsName, target.tagName, url].join('|');
+        const errorId = this.hashString(rawCtx);
+        if(this.seenErrorIds.has(errorId)){
+          return;
+        }
+        this.seenErrorIds.add(errorId);
+        this.reportError({
+          errorId,
+          type,
+          tagName: target.tagName,
+          url,
+          outerHTML: target.outerHTML,
+          timestamp: Date.now(),
+        });
       },
       true
     );
