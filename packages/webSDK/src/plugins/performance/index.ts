@@ -1,4 +1,5 @@
-import MonitorCore from "../../core";
+import WebSDK from "../../index";
+// import MonitorCore from "../../core";
 interface LayoutShift extends PerformanceEntry {
   value: number; // 本次偏移的分数
   hadRecentInput: boolean; // 是否由用户输入触发
@@ -9,7 +10,7 @@ interface LayoutShift extends PerformanceEntry {
   }>;
 }
 export class PerformanceMonitor {
-  private sdkCoreInstance: MonitorCore; // 监控核心实例
+  private sdkInstance: WebSDK; // 监控核心实例
   private fp: number | null = null;
   private fcp: number | null = null;
   private lcp: number = 0;
@@ -26,8 +27,8 @@ export class PerformanceMonitor {
   private observerCLS: PerformanceObserver | null = null; // CLS 观察器
   private observerLCP: PerformanceObserver | null = null; // LCP 观察器
 
-  constructor(sdkCoreInstance: MonitorCore) {
-    this.sdkCoreInstance = sdkCoreInstance;
+  constructor(sdkInstance: WebSDK) {
+    this.sdkInstance = sdkInstance;
     // 初始化性能监控
     this.init();
   }
@@ -61,14 +62,12 @@ export class PerformanceMonitor {
         if (entry.entryType === "paint") {
           if (entry.name === "first-paint") {
             this.fp = entry.startTime;
-            this.sdkCoreInstance.report("performance", {
-              metric: "fp",
+            this.sdkInstance.monitorCoreInstance.report("performance",'fp', {
               value: this.fp,
             });
           } else if (entry.name === "first-contentful-paint") {
             this.fcp = entry.startTime;
-            this.sdkCoreInstance.report("performance", {
-              metric: "fcp",
+            this.sdkInstance.monitorCoreInstance.report("performance",'fcp', {
               value: this.fcp,
             });
             observerFpAndFCP.disconnect(); // 断开观察器
@@ -96,8 +95,7 @@ export class PerformanceMonitor {
     });
     const reportLCP = () => {
       if (this.lcp > 0) {
-        this.sdkCoreInstance.report("performance", {
-          metric: "lcp",
+        this.sdkInstance.monitorCoreInstance.report("performance",'lcp', {
           value: this.lcp,
         });
         this.lastEntryTimestamp = 0; // 重置最后一次偏移的时间戳
@@ -115,8 +113,7 @@ export class PerformanceMonitor {
       if (entries.length > 0) {
         this.fidStartTime = entries[0].startTime;
         this.fid = entries[0].processingEnd - entries[0].startTime;
-        this.sdkCoreInstance.report("performance", {
-          metric: "fid",
+        this.sdkInstance.monitorCoreInstance.report("performance", 'fid', {
           value: this.fid,
         });
         observerFID.disconnect(); // 断开观察器
@@ -146,8 +143,7 @@ export class PerformanceMonitor {
     });
     this.reportOnVisibilityChange(() => {
       if (this.cls > 0) {
-        this.sdkCoreInstance.report("performance", {
-          metric: "cls",
+        this.sdkInstance.monitorCoreInstance.report("performance",'cls', {
           value: this.cls,
         });
         this.cls = 0; // 重置 CLS 值
@@ -167,8 +163,7 @@ export class PerformanceMonitor {
         this.ttfb =
           navigationEntries.responseStart - navigationEntries.requestStart;
         if (this.ttfb > 0) {
-          this.sdkCoreInstance.report("performance", {
-            metric: "ttfb",
+          this.sdkInstance.monitorCoreInstance.report("performance",'ttfb', {
             value: this.ttfb,
           });
           observerTTFB.disconnect(); // 断开观察器
@@ -213,8 +208,7 @@ export class PerformanceMonitor {
         .reduce((total, task) => {
           return total + Math.max(0, task.duration - 50); // 计算 TBT
         }, 0);
-      this.sdkCoreInstance.report("performance", {
-        metric: "tbt",
+      this.sdkInstance.monitorCoreInstance.report("performance",'tbt', {
         value: this.tbt,
       });
       this.tbtTask = []; // 重置 TBT 任务列表
