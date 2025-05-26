@@ -3,12 +3,30 @@ import WebSDK from "../../index";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
+enum MetricsName {
+  JS_ERROR = 'js_error',
+  RESOURCE_ERROR = 'resource_error',
+  PROMISE_ERROR = 'promise_error',
+  INTERFACE_ERROR = 'interface_error',
+  XHR_ERROR = 'xhr_error',
+  NETWORK_ERROR = 'network_error',
+  HTTP_ERROR = 'http_error',
+}
+
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
   private options: ErrorMonitorOptions;
   private sdkCoreInstance: MonitorCore; // 监控核心实例
   private sdkInstance: WebSDK;
   private seenErrorIds = new Set<string>();//用来存已经上报过的errorId，防止重复上报
+  private hashString(str: string): string{
+    let hash = 0;
+    for (let i = 0; i<str.length; i++){
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'e' + Math.abs(hash).toString(36);
+  }
   constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
     this.sdkCoreInstance = sdkCoreInstance;
     this.options = options;
