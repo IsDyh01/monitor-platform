@@ -116,6 +116,9 @@ importers:
 
   packages/webSDK:
     dependencies:
+      tti-polyfill:
+        specifier: ^0.2.2
+        version: 0.2.2
       ua-parser-js:
         specifier: ^2.0.3
         version: 2.0.3
@@ -2381,6 +2384,9 @@ packages:
 
   tsconfig@7.0.0:
     resolution: {integrity: sha512-vZXmzPrL+EmC4T/4rVlT2jNVMWCi/O4DIiSj3UHg1OE5kCKbk4mfrXc6dZksLgRM/TZlKnousKH9bbTazUWRRw==}
+
+  tti-polyfill@0.2.2:
+    resolution: {integrity: sha512-URIoJxvsHThbQEJij29hIBUDHx9UNoBBCQVjy7L8PnzkqY8N6lsAI6h8JrT1Wt2lA0avus/DkuiJxd9qpfCpqw==}
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -5053,6 +5059,8 @@ snapshots:
       '@types/strip-json-comments': 0.0.30
       strip-bom: 3.0.0
       strip-json-comments: 2.0.1
+
+  tti-polyfill@0.2.2: {}
 
   type-check@0.4.0:
     dependencies:
