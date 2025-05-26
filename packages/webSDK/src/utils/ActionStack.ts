@@ -1,5 +1,5 @@
 export interface Action {
-  mertic: string;          // 行为类型（如 'click'）
+  event_name: string;          // 行为类型（如 'click'）
   timestamp: number;     // 行为时间戳
   data: any;             // 行为数据（如点击事件的 payload）
 }

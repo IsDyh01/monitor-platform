@@ -1,12 +1,18 @@
 import MonitorCore from "../../core";
+import WebSDK from "../../index";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
+  private options: ErrorMonitorOptions;
   private sdkCoreInstance: MonitorCore; // 监控核心实例
-  constructor(sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
+  private sdkInstance: WebSDK;
+  private seenErrorIds = new Set<string>();//用来存已经上报过的errorId，防止重复上报
+  constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
     this.sdkCoreInstance = sdkCoreInstance;
+    this.options = options;
+    this.sdkInstance = sdkInstance;
     // 初始化错误监控
     if(!options || typeof options.reportError !== "function"){
       throw new Error("[ErrorMonitor] 必须传入 reportError 方法");
@@ -23,19 +29,31 @@ export class ErrorMonitor {
 
   //捕获同步js错误
   private initJsError(){  
-    window.onerror = (message, source, lineno, colno, error) => {
-      const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      this.reportError({
-        errorId,
-        type: "js-error",
-        message,
-        source,
-        lineno,
-        colno,
-        stack: error?.stack,
-        timestamp: Date.now,
-      });
-    };
+    window.addEventListener('error', (event: ErrorEvent) => {
+      //纯资源错误交给initResourceError
+      if(!event.error) {
+        return;
+      }
+      const { message, filename: source, lineno, colno, error } = event;
+      const type = event.message === 'Script error.' && !event.lineno && !event.colno ? MetricsName.JS_ERROR : MetricsName.JS_ERROR;
+      const rawCtx = [type, source, lineno, colno].join('|');
+      const errorId = this.hashString(rawCtx);
+      if(this.seenErrorIds.has(errorId)){
+        return;
+      }
+      this.seenErrorIds.add(errorId);
+        this.reportError({
+          errorId,
+          type,         
+          message,
+          source,
+          lineno,
+          colno,
+          stack: error.stack,
+          timestamp: Date.now(),
+        });
+        event.preventDefault();
+    },true);
   }
   //捕获资源加载错误
   private initResourceError(){

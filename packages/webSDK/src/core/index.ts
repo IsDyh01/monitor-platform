@@ -17,15 +17,15 @@ export default class MonitorCore {
   }
   
   // 数据上报
-  report(event_type: EventType, payload: BasePayload) {
+  report(event_type: EventType,event_name: string, payload: BasePayload) {
     // 先对数据进行格式化
-    const data = this.formatData(event_type, payload);
+    const data = this.formatData(event_type, event_name, payload);
     // 在进行上报
     this.tracker.send(data);
   }
 
   // 格式化数据
-  formatData(event_type: EventType, payload: any): ReportData {
+  formatData(event_type: EventType,event_name: string, payload: any): ReportData {
     const timestamp = this.getTimestamp();
     const context = this.getContxt();
     const event_id = this.getEventId();
@@ -33,6 +33,7 @@ export default class MonitorCore {
       project_id: this.staticData.project_id,
       id: event_id, // 每个事件的id
       user: this.staticData.user,
+      event_name,
       event_type,
       timestamp: timestamp,
       context,
@@ -51,9 +52,9 @@ export default class MonitorCore {
   }
 
   // 将行为添加到栈中
-  pushAction(mertic: string, data: any): void {
+  pushAction(event_name: string, data: any): void {
     const action = {
-      mertic,
+      event_name,
       timestamp: Date.now(),
       data,
     };
