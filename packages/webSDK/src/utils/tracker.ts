@@ -160,8 +160,8 @@ class Tracker {
   }
 
   send(data: ReportData) {
-    let queueType: string = "idle";
-    if (data.event_type === "error") {
+    let queueType: string;;
+    if (data.event_type === "error" || data.event_type === 'custom') {
       queueType = "immediate";
     }
     // else if (data.event_type === "performance") {

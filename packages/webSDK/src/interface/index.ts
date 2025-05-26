@@ -27,7 +27,8 @@ export interface Context {
 
 /** 负载数据基类（所有 payload 必须包含 `metric` 字段） */
 export interface BasePayload {
-  metric: string; // 必填，指标类型（如 "fcp", "lcp"）
+  // 去掉metric 替换为event_name
+  // metric: string; // 必填，指标类型（如 "fcp", "lcp"）
   [key: string]: any; // 允许扩展其他动态字段
 }
 
@@ -37,6 +38,7 @@ export interface ReportData {
   project_id: string; // 项目唯一ID
   id: string; // 事件唯一ID（SDK自动生成UUIDv4）
   event_type: EventType; // 事件类型
+  event_name: string; // 具体得事件名称，之前的payload中的metries值 
   timestamp: number; // Unix毫秒时间戳
   user: User; // 用户标识信息
   context: Context; // 环境上下文
