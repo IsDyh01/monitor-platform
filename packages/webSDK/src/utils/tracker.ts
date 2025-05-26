@@ -53,12 +53,17 @@ class Tracker {
     this.setupRetryScheduler();
     // 检测是本地存储是否有失败数据，如果有则上报
     this.retryFailedData();
+    this.sendOnUnload();
+    window.removeEventListener("beforeunload", this.sendOnUnload); // 先移除旧监听
+    window.addEventListener("beforeunload", this.sendOnUnload);
   }
   // 销毁定时器
   destroy() {
     clearInterval(this.idleInterval);
     clearTimeout(this.batchTimer);
     clearInterval(this.retryFailedDataTimer);
+    window.removeEventListener("online", this.retryFailedData);
+    window.removeEventListener("beforeunload", this.sendOnUnload);
   }
   //立即上报，如错误检测等比较紧急的数据
   flushImmediate() {
@@ -195,12 +200,12 @@ class Tracker {
   // 对发送逻辑做兼容处理
   beacon = (url: string, data: ReportData[]) => {
     return new Promise((resolve) => {
-      if (navigator.sendBeacon(url + '/report', JSON.stringify(data))) {
+      if (navigator.sendBeacon(url + "/report", JSON.stringify(data))) {
         return resolve(true);
       } else {
         // 兼容处理
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", url + '/report', true); // 使用异步请求
+        xhr.open("POST", url + "/report", true); // 使用异步请求
         xhr.setRequestHeader("Content-Type", "application/json");
         // 处理响应
         xhr.onload = () => {
@@ -243,7 +248,7 @@ class Tracker {
     }
   }
   // 从本地存储中获取失败数据并且上报
-  private async retryFailedData() {
+  private retryFailedData = async () => {
     const STORAGE_KEY = "tracker_failed_data";
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -256,13 +261,11 @@ class Tracker {
     } catch (e) {
       console.error("读取本地存储失败:", e);
     }
-  }
+  };
   // 设置定时器，定时上报失败数据
   private setupRetryScheduler() {
     // 监听网络状态变化
-    window.addEventListener("online", () => {
-      this.retryFailedData();
-    });
+    window.addEventListener("online", this.retryFailedData);
     if (this.retryFailedDataTimer) {
       clearInterval(this.retryFailedDataTimer);
     }
@@ -273,5 +276,16 @@ class Tracker {
       this.trackConfig.failedRetryDelay || 5 * 60 * 1000
     );
   }
+  // 检测关闭刷新等状态，发送未发送的数据
+  public sendOnUnload = () => {
+    // 立即上报所有未发送的数据
+    if (this.immediateQueue.length > 0) {
+      this.flushImmediate();
+    }
+    if (this.batchQueue.length > 0) {
+      const batchData = this.batchQueue.splice(0, this.batchQueue.length);
+      this.sendWithRetry(batchData);
+    }
+  };
 }
 export default Tracker;
