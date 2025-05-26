@@ -1,7 +1,6 @@
 import mongoose from 'mongoose'
 import {DBHOST,DBPORT,DBNAME,USER,PASSWORD,AUTHSOURCE}  from '../config/config'
-import express from 'express'
-const app=express()
+
 export default async function (success:Function,error:Function){
   if(typeof error!=='function'){
     error=function(){

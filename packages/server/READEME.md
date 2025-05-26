@@ -6,10 +6,8 @@ pnpm dev
 获取: GET  请求 http://127.0.0.1:3000/api/getData?event_type=事件类型名
 
 ### 3.查询数据库
-（1）测试ts文件 查询数据库
-updating...
 
-（2）mongodb查看 mongosh
+（1）mongodb查看 mongosh
 https://www.mongodb.com/try/download/shell
 在此地址下载mongoDB shell
 
@@ -30,6 +28,6 @@ show collections ：能查看当前数据库下有哪些集合
 
 db.集合名字.find():查找该集合的所有数据
 
-（3）使用可视化工具查看数据库
+（2）使用可视化工具查看数据库
 配置信息在config.ts中
 
