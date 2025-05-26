@@ -1,5 +1,4 @@
 import MonitorCore from "../../core";
-import ttiPolyfill from "tti-polyfill";
 interface LayoutShift extends PerformanceEntry {
   value: number; // 本次偏移的分数
   hadRecentInput: boolean; // 是否由用户输入触发
@@ -15,15 +14,14 @@ export class PerformanceMonitor {
   private fcp: number | null = null;
   private lcp: number = 0;
   private ttfb: number | null = null;
-  private tti: number | null = null;
   private cls: number = 0;
   private fid: number | null = null;
   private tbtTask: Array<{ startTime: number; duration: number }> = [];
   private tbt: number = 0;
+  private fidStartTime: number = 0; // FID 开始时间,用于限制TBT的时间范围
   //CLS 相关
-  private clsValue = 0; // 最终的 CLS 值
   private sessionValue = 0; // 当前会话窗口的分数
-  private lastEntryTimestamp = -1; // 最后一次偏移的时间戳
+  private lastEntryTimestamp = 0; // 最后一次偏移的时间戳
   private observerTBT: PerformanceObserver | null = null; // TBT 观察器
   private observerCLS: PerformanceObserver | null = null; // CLS 观察器
   private observerLCP: PerformanceObserver | null = null; // LCP 观察器
@@ -54,8 +52,7 @@ export class PerformanceMonitor {
     this.getCLS();
     // 监听TBT
     this.calculateTBT();
-    // 监听TTI
-    await this.getTTI();
+    this.reportOnVisibilityChange(this.reportTBT.bind(this));
   }
   // 监听FP
   getFPAndFCP() {
@@ -97,30 +94,17 @@ export class PerformanceMonitor {
       type: "largest-contentful-paint",
       buffered: true,
     });
-    this.reportOnVisibilityChange(() => {
+    const reportLCP = () => {
       if (this.lcp > 0) {
         this.sdkCoreInstance.report("performance", {
           metric: "lcp",
           value: this.lcp,
         });
-        this.lastEntryTimestamp = -1; // 重置最后一次偏移的时间戳
+        this.lastEntryTimestamp = 0; // 重置最后一次偏移的时间戳
         this.observerLCP!.disconnect(); // 断开观察器
       }
-    });
-  }
-
-  async getTTI() {
-    // 监听 TTI
-    try {
-      this.tti = await ttiPolyfill.getFirstConsistentlyInteractive();
-      this.sdkCoreInstance.report("performance", {
-        metric: "tti",
-        value: this.tti,
-      });
-      this.reportTBT();
-    } catch (error) {
-      console.error("获取TTI失败", error);
-    }
+    };
+    this.reportOnVisibilityChange(reportLCP);
   }
 
   // 监听FID
@@ -129,6 +113,7 @@ export class PerformanceMonitor {
     const observerFID = new PerformanceObserver((list) => {
       const entries = list.getEntries() as PerformanceEventTiming[];
       if (entries.length > 0) {
+        this.fidStartTime = entries[0].startTime;
         this.fid = entries[0].processingEnd - entries[0].startTime;
         this.sdkCoreInstance.report("performance", {
           metric: "fid",
@@ -200,7 +185,7 @@ export class PerformanceMonitor {
     this.observerTBT = new PerformanceObserver((list) => {
       const entries = list.getEntries();
       entries.forEach((entry) => {
-        if (entry.entryType === "long-task") {
+        if (entry.entryType === "longtask") {
           const taskDuration = entry.duration;
           this.tbtTask.push({
             startTime: entry.startTime,
@@ -210,19 +195,19 @@ export class PerformanceMonitor {
       });
     });
     this.observerTBT.observe({
-      type: "long-task",
+      type: "longtask",
       buffered: true,
     });
   }
 
   reportTBT() {
-    if (this.tbt > 0) {
+    if (this.tbtTask.length > 0) {
       // 计算 TBT,在 FCP 之后，
       this.tbt = this.tbtTask
         .filter((task) => {
           return (
             task.startTime >= this.fcp! &&
-            task.startTime + task.duration <= this.tti!
+            task.startTime + task.duration <= this.fidStartTime!
           ); // 过滤掉 FCP 之前的任务
         })
         .reduce((total, task) => {
@@ -240,16 +225,21 @@ export class PerformanceMonitor {
   }
 
   private reportOnVisibilityChange(callback: () => void) {
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
-        callback();
-      }
-    });
-    window.addEventListener("pagehide", () => {
+    const handler = () => {
       callback();
+      // 在所有事件中移除 handler
+      document.removeEventListener("visibilitychange", handler);
+      window.removeEventListener("pagehide", handler);
+      window.removeEventListener("beforeunload", handler);
+    };
+    document.addEventListener("visibilitychange", handler, {
+      once: true,
     });
-    window.addEventListener("beforeunload", () => {
-      callback();
+    window.addEventListener("pagehide", handler, {
+      once: true,
+    });
+    window.addEventListener("beforeunload", handler, {
+      once: true,
     });
   }
 }
