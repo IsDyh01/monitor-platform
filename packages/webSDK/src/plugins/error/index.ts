@@ -84,7 +84,7 @@ export class ErrorMonitor {
           return;
         }
         const type = MetricsName.RESOURCE_ERROR;
-        const rawCtx = [MetricsName, target.tagName, url].join('|');
+        const rawCtx = [type, target.tagName, url].join('|');
         const errorId = this.hashString(rawCtx);
         if(this.seenErrorIds.has(errorId)){
           return;
@@ -104,11 +104,21 @@ export class ErrorMonitor {
   }
   //捕获未处理的Promise异常
   private initPromiseError(){
-    window.addEventListener("unhandledrejection",(event)=>{
-      const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    window.addEventListener("unhandledrejection",(event:PromiseRejectionEvent)=>{
+      const type = MetricsName.PROMISE_ERROR;
+      const reason = event.reason;
+      const message = reason?.message ?? String(reason);
+      const stack = reason?.stack ?? "";
+      const rawCtx = [type, message, stack].join("|");
+      const errorId = this.hashString(rawCtx);
+      if(this.seenErrorIds.has(errorId)){
+        return;
+      }
+      this.seenErrorIds.add(errorId);
       this.reportError({
         errorId,
-        type: "promise-error",
+        type,
+        message,
         reason: event.reason,
         timestamp: Date.now(),
       });
