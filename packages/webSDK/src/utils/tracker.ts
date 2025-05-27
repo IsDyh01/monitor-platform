@@ -59,8 +59,7 @@ class Tracker {
     this.setupRetryScheduler();
     // 检测是本地存储是否有失败数据，如果有则上报
     this.retryFailedData();
-    this.sendOnUnload();
-    window.removeEventListener("beforeunload", this.sendOnUnload); // 先移除旧监听
+    // 在刷新或者关闭页面之前，上报对列中的数据
     window.addEventListener("beforeunload", this.sendOnUnload);
   }
   // 销毁定时器
