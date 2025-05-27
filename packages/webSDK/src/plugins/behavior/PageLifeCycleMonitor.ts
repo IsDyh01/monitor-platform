@@ -2,83 +2,115 @@ import MonitorCore from "../../core";
 import WebSDK from "../../index";
 import { BasePayload } from "../../interface";
 
-// 保存原始的 history 方法
-const originalPushState = history.pushState;
-const originalReplaceState = history.replaceState;
-
-// 重写 pushState 和 replaceState 以触发自定义事件
-history.pushState = function (state, title, url) {
-  originalPushState.call(history, state, title, url);
-  window.dispatchEvent(new Event("customRouteChange")); // 触发自定义路由变化事件
+// 监听哈希变化（通过popstate统一处理，因为popstate也能监听哈希变化）
+const proxyPopstate = (handler: (e: Event) => void) => {
+  window.addEventListener('popstate', (e) => handler(e));
 };
 
-history.replaceState = function (state, title, url) {
-  originalReplaceState.call(history, state, title, url);
-  window.dispatchEvent(new Event("customRouteChange")); // 触发自定义路由变化事件
+// 重写history API，触发自定义事件
+const originalPush = history.pushState;
+const originalReplace = history.replaceState;
+history.pushState = (...args) => {
+  originalPush.apply(history, args);
+  window.dispatchEvent(new Event('pushstate'));
+};
+history.replaceState = (...args) => {
+  originalReplace.apply(history, args);
+  window.dispatchEvent(new Event('replacestate'));
+};
+
+// 监听history API自定义事件
+const proxyHistoryAPI = (handler: (e: Event) => void) => {
+  window.addEventListener('pushstate', (e) => handler(e));
+  window.addEventListener('replacestate', (e) => handler(e));
 };
 
 export class PageLifeCycleMonitor {
   private monitorCore: MonitorCore;
-  private sdkInstance: WebSDK;
-  private pageLoadTime: number | null = null;
+  private sdk: WebSDK;
+  private lastRoute: string = ''; // 路由去重标记
+  private lastHash: string = ''; // 哈希去重标记（新增）
 
-  constructor(sdkInstance: WebSDK) {
-    this.sdkInstance = sdkInstance;
-    this.monitorCore = sdkInstance.monitorCoreInstance;
-    this.bindPageEvents();
+  constructor(sdk: WebSDK) {
+    this.sdk = sdk;
+    this.monitorCore = sdk.monitorCoreInstance;
+    this.initRouter();
+    this.initPV();
   }
 
-  private bindPageEvents(): void {
-   
+  // 解析触发源（类内部方法，可访问类属性）
+  private getTrigger(e: Event): string {
+    const currentHash = window.location.hash;
+    const isHashChanged = currentHash !== this.lastHash;
+    this.lastHash = currentHash; // 更新哈希记录
 
-    // 监听 hash 变化
-    window.addEventListener("hashchange", this.handleRouteChange.bind(this));
-
-    // 监听 popstate（处理 go/back 等操作）
-    window.addEventListener("popstate", this.handleRouteChange.bind(this));
-
-    // 监听自定义路由变化事件（处理 pushState/replaceState）
-    window.addEventListener("customRouteChange", this.handleRouteChange.bind(this));
-
-    // 页面可见性变化
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        const payload: BasePayload = {
-          timestamp: Date.now(),
-        };
-        this.monitorCore.report("behavior","page_hidden", payload);
-      } else {
-        const payload: BasePayload = {
-          timestamp: Date.now(),
-        };
-        this.monitorCore.report("behavior","page_visible", payload);
-      }
-    });
-
-    // 页面卸载
-    window.addEventListener("beforeunload", () => {
-      if (this.pageLoadTime === null) return;
-      const stayTime = Date.now() - this.pageLoadTime;
-      if (stayTime > 100) {
-        const payload: BasePayload = {
-          stayTime: stayTime,
-        };
-        this.monitorCore.pushAction("page_leave", payload);
-        this.monitorCore.report("behavior","page_leave",payload);
-      }
-    });
+    switch (e.type) {
+      case 'pushstate':
+        return isHashChanged ? 'hash_push' : 'push';
+      case 'replacestate':
+        return isHashChanged ? 'hash_replace' : 'replace';
+      case 'popstate':
+        return isHashChanged ? 'hash_pop' : 'pop';
+      default:
+        return 'unknown';
+    }
   }
 
-  // 处理路由变化的通用方法（上报 PV）
-  private handleRouteChange() { 
-  //   // 记录上一次URL，避免重复统计等待优化
-  // if (this.lastUrl === window.location.href) return;
-  // this.lastUrl = window.location.href;等待优化
-    const payload: BasePayload = {
-      url: window.location.href, // 当前页面 URL
-      title: document.title, // 新增页面标题
-      timestamp: Date.now(),
+  // 路由监控
+  private initRouter(): void {
+    const handleRoute = (e: Event) => {
+      const current = window.location.href;
+      if (current === this.lastRoute) return; // 路由去重
+
+      this.lastRoute = current;
+      const payload: BasePayload = {
+        url: current,
+        title: document.title,
+        timestamp: Date.now(),
+        trigger: this.getTrigger(e), // 调用类内部方法
+        query: new URLSearchParams(window.location.search).toString(),
+        hash: window.location.hash,
+      };
+
+      this.monitorCore.report('behavior', 'route_change', payload);
+      this.monitorCore.pushAction('behavior', payload);
     };
-    this.monitorCore.report("behavior","page_view",payload);
+
+    // 监听popstate（包含哈希变化和浏览器导航）
+    proxyPopstate(handleRoute);
+    // 监听history API自定义事件（push/replace）
+    proxyHistoryAPI(handleRoute);
+  }
+
+  // PV监控
+  private initPV(): void {
+    window.addEventListener('load', () => {
+      const initialPayload: BasePayload = {
+        url: window.location.href,
+        title: document.title,
+        timestamp: Date.now(),
+        isInitial: true,
+      };
+      this.monitorCore.report('behavior', 'page_view', initialPayload);
+    });
+
+    const handlePV = (e: Event) => {
+      const current = window.location.href;
+      if (current === this.lastRoute) return;
+
+      const payload: BasePayload = {
+        url: current,
+        title: document.title,
+        timestamp: Date.now(),
+        trigger: this.getTrigger(e),
+        query: new URLSearchParams(window.location.search).toString(),
+        hash: window.location.hash,
+      };
+
+      this.monitorCore.report('behavior', 'page_view', payload);
+    };
+
+    proxyPopstate(handlePV);
+    proxyHistoryAPI(handlePV);
   }
 }
