@@ -2,6 +2,28 @@ import MonitorCore from "../../core";
 export interface ErrorMonitorOptions {
   reportError: (payload: Record<string, any>) => void;
 }
+enum MetricsName {
+  JS_ERROR = 'js_error',
+  JS_CORS_ERROR = 'js_cors_error',
+  RESOURCE_ERROR = 'resource_error',
+  PROMISE_ERROR = 'promise_error',
+  HTTP_ERROR = 'http_error',
+}
+//判断js_error  js_cors_error  resource_error
+function getErrorType(params: {
+    event?: ErrorEvent;
+    isResource?: boolean;
+}): MetricsName {
+  const { event, isResource } = params;
+  if(isResource) {
+    return MetricsName.RESOURCE_ERROR;
+  }
+  if(event?.message === 'Script error.' && !event.lineno && !event.colno) {
+    return MetricsName.JS_CORS_ERROR;
+  }
+  return MetricsName.JS_ERROR;
+}
+
 export class ErrorMonitor {
   private reportError: ErrorMonitorOptions["reportError"];
   private sdkCoreInstance: MonitorCore; // 监控核心实例
