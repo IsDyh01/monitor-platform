@@ -131,37 +131,49 @@ export class ErrorMonitor {
     const originalFetch = window.fetch.bind(window);
     const fetchProxy =new Proxy (originalFetch, {
       apply: (target, thisArg, args: Parameters<typeof fetch>) => {
-        const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         const start = Date.now()
         const resource = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
         const method = (args[1] as RequestInit)?.method || 'GET';
         return target.apply(thisArg, args,)
         .then((response: Response) => {
-          if(!response.ok) {
-            this.reportError({
+          const type = MetricsName.HTTP_ERROR;
+          const rawCtx = [type, resource, method, response.status].join('|');
+          const errorId = this.hashString(rawCtx);
+          if(!response.ok ) {
+            const payload = {
               errorId,
-              type:'interface-error',
               url: resource,
+              method,
               status: response.status,
               statusText: response.statusText,
               duration: Date.now() - start,
               timestamp: Date.now(),
-            });
+            }
+            this.sdkInstance.monitorCoreInstance.report(
+              'error',
+              type,
+              payload
+            );
           };
             return response;
         })
         .catch((err: any) => {
           const duration = Date.now() -start;
-          //fetch抛出的错误，可能是网络断开或cors拦截等
-          const isCors = err instanceof TypeError && err.message === 'Failed to fetch';
-          this.reportError({
+          const type = MetricsName.HTTP_ERROR;
+          const rawCtx = [type, resource, method, err.message].join('|');
+          const errorId = this.hashString(rawCtx);
+          const payload = {
             errorId,
-            type: isCors ? 'cors-error' : 'http-error',
             url: resource,
             method,
             duration,
             timestamp: Date.now(),
-          });
+          }
+          this.sdkInstance.monitorCoreInstance.report(
+            'error',
+            type,
+            payload
+          );
           return Promise.reject(err);
         }); 
       }
