@@ -106,14 +106,24 @@ export class ErrorMonitor {
   }
   //捕获未处理的Promise异常
   private initPromiseError(){
-    window.addEventListener("unhandledrejection",(event)=>{
-      const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      this.reportError({
+    window.addEventListener("unhandledrejection",(event:PromiseRejectionEvent)=>{
+      const type = MetricsName.PROMISE_ERROR;
+      const reason = event.reason;
+      const message = reason?.message ?? String(reason);
+      const stack = reason?.stack ?? "";
+      const rawCtx = [type, message, stack].join("|");
+      const errorId = this.hashString(rawCtx);
+      const payload = {
         errorId,
-        type: "promise-error",
+        message,
         reason: event.reason,
         timestamp: Date.now(),
-      });
+      }
+      this.sdkInstance.monitorCoreInstance.report(
+        'error',
+        type,
+        payload
+      );
     });
   }
   //捕获接口异常
