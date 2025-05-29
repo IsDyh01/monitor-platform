@@ -89,10 +89,10 @@ export class ErrorMonitor {
         const rawCtx = [type, target.tagName, url].join('|');
         const errorId = this.hashString(rawCtx);
         const payload = {
-            errorId,
-            tagName: target.tagName,
+          errorId,
+          tagName: target.tagName,
           url,
-            outerHTML: target.outerHTML,
+          outerHTML: target.outerHTML,
           timestamp: Date.now()
         }
         this.sdkInstance.monitorCoreInstance.report(
@@ -163,11 +163,11 @@ export class ErrorMonitor {
           const rawCtx = [type, resource, method, err.message].join('|');
           const errorId = this.hashString(rawCtx);
           const payload = {
-            errorId,
-            url: resource,
-            method,
-            duration,
-            timestamp: Date.now(),
+              errorId,
+              url: resource,
+              method,
+              duration,
+              timestamp: Date.now(),
           }
           this.sdkInstance.monitorCoreInstance.report(
             'error',
@@ -205,40 +205,64 @@ export class ErrorMonitor {
         //如果status >= 400 或 status === 0 (可能是跨域或网络错误)
         if (status >= 400 || status === 0) {
           const duration = Date.now() - start;
-          self.reportError({
-            type: status === 0 ? 'cors-error' : 'http-error',
+          const type = MetricsName.HTTP_ERROR;
+          const rawCtx = [type, xhr.__url, xhr.__method, status === 0 ? 'network': String(status)].join('|');
+          const errorId = self.hashString(rawCtx);
+          const payload = {
+            errorId,
             url: xhr.__url || '',
             method: xhr.__method || 'GET',
             status: status === 0 ? undefined : status,
             statusText: xhr.statusText || undefined,
             duration,
             timestamp: Date.now(),
-          });
+          }
+          self.sdkInstance.monitorCoreInstance.report(
+            'error',
+            type,
+            payload
+          );
           cleanup();
         };
       }
       const onError = () => {
         const duration = Date.now() - start;
-        self.reportError({
-          type: 'http-error',
+        const type = MetricsName.HTTP_ERROR;
+        const rawCtx = [type, xhr.__url, xhr.__method, 'error'].join('|');
+        const errorId = self.hashString(rawCtx);
+        const payload = {
+          errorId,
           url: xhr.__url || '',
           method: xhr.__method || 'GET',
           duration,
           timestamp: Date.now(),
-        });
+        }
+        self.sdkInstance.monitorCoreInstance.report(
+          'error',
+          type,
+          payload
+        );
         cleanup();
       };
       const onTimeout = () => {
         const duration = Date.now() - start;
-        self.reportError({
-          type: 'http-error',
+        const type = MetricsName.HTTP_ERROR;
+        const rawCtx = [type, xhr.__url, xhr.__method, 'timeout'].join('|');
+        const errorId = self.hashString(rawCtx);
+        const payload = {
+          errorId,
           url: xhr.__url || '',
           method: xhr.__method || 'GET',
           status: 0,
           statusText: 'timeout',
           duration,
           timestamp: Date.now(),
-        });
+        }
+        self.sdkInstance.monitorCoreInstance.report(
+          'error',
+          type,
+          payload  
+        );
         cleanup();
       };
       const cleanup = () => {
