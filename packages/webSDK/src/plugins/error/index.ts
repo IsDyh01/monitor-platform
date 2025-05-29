@@ -49,19 +49,31 @@ export class ErrorMonitor {
 
   //捕获同步js错误
   private initJsError(){  
-    window.onerror = (message, source, lineno, colno, error) => {
-      const errorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      this.reportError({
+    window.addEventListener('error', (event: ErrorEvent) => {
+      //纯资源错误交给initResourceError
+      if(!event.error) {
+        return;
+      }
+      const { message, filename: source, lineno, colno, error } = event;
+      const type = getErrorType({event, isResource: false});
+      const rawCtx = [type, source, lineno, colno].join('|');
+      const errorId = this.hashString(rawCtx);
+      //BasePayload
+      const payload = {
         errorId,
-        type: "js-error",
         message,
         source,
         lineno,
         colno,
-        stack: error?.stack,
-        timestamp: Date.now,
-      });
-    };
+        stack: error.stack
+      };
+        this.sdkInstance.monitorCoreInstance.report(
+          'error',
+          type,
+          payload
+        );
+        if(type === MetricsName.JS_CORS_ERROR) {event.preventDefault();}
+    },true);
   }
   //捕获资源加载错误
   private initResourceError(){
