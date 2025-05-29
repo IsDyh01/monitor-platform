@@ -1,8 +1,5 @@
 import MonitorCore from "../../core";
 import WebSDK from "../../index";
-export interface ErrorMonitorOptions {
-  reportError: (payload: Record<string, any>) => void;
-}
 enum MetricsName {
   JS_ERROR = 'js_error',
   JS_CORS_ERROR = 'js_cors_error',
@@ -26,8 +23,6 @@ function getErrorType(params: {
 }
 
 export class ErrorMonitor {
-  private reportError: ErrorMonitorOptions["reportError"];
-  private options: ErrorMonitorOptions;
   private sdkCoreInstance: MonitorCore; // 监控核心实例
   private sdkInstance: WebSDK;
   private seenErrorIds = new Set<string>();//用来存已经上报过的errorId，防止重复上报
@@ -40,16 +35,10 @@ export class ErrorMonitor {
     return 'e' + Math.abs(hash).toString(36);
   }
   
-  constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore,options: ErrorMonitorOptions) {
+  constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore) {
     this.sdkCoreInstance = sdkCoreInstance;
-    this.options = options;
     this.sdkInstance = sdkInstance;
     // 初始化错误监控
-    if(!options || typeof options.reportError !== "function"){
-      throw new Error("[ErrorMonitor] 必须传入 reportError 方法");
-    }
-    this.reportError = options.reportError
-
     //初始化监听
     this.initJsError();
     this.initResourceError();
