@@ -32,8 +32,8 @@ class WebSDK {
 
     // 初始化监控插件
     new PerformanceMonitor(this);
-    new ErrorMonitor();
-    new BehaviorMonitor();
+    new ErrorMonitor(this,this.monitorCoreInstance)
+    new BehaviorMonitor(this);
   }
 
   // 获取项目id
