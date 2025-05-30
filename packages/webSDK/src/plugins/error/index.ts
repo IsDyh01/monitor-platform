@@ -46,6 +46,22 @@ export class ErrorMonitor {
     this.initInterfaceError();
     this.initXhrError();
   }
+  private handlerReportError(
+    event_type: 'error',
+    event_name: MetricsName,
+    payload: Record<string, any>
+  ){
+    const errorId = payload.errorId;
+    if(this.seenErrorIds.has(errorId)){
+      return; //重复错误，跳过上报
+    }
+    this.seenErrorIds.has(errorId);
+    this.sdkCoreInstance.report(
+      event_type,
+      event_name,
+      payload
+    );
+  }
 
   //捕获同步js错误
   private initJsError(){  
@@ -66,7 +82,7 @@ export class ErrorMonitor {
           userAgent,
           timestamp: Date.now(),
         };
-        this.sdkCoreInstance.report('error',type,payload)
+        this.handlerReportError('error',type,payload)
         event.preventDefault();
         return;
       }
@@ -86,7 +102,7 @@ export class ErrorMonitor {
         colno,
         stack: error.stack
       };
-        this.sdkInstance.monitorCoreInstance.report(
+        this.handlerReportError(
           'error',
           type,
           payload
@@ -98,12 +114,13 @@ export class ErrorMonitor {
     window.addEventListener(
       "error",
       (event:Event) => {
+        const type = getErrorType({isResource:true});
+        if(type !== MetricsName.RESOURCE_ERROR){return};
         const target = event.target as HTMLElement;
         const url = (target as any).src || (target as any).href;
         if(!url){
           return;
         }
-        const type = getErrorType({isResource:true});
         const rawCtx = [type, target.tagName, url].join('|');
         const errorId = this.hashString(rawCtx);
         const payload = {
@@ -113,7 +130,7 @@ export class ErrorMonitor {
           outerHTML: target.outerHTML,
           timestamp: Date.now()
         }
-        this.sdkInstance.monitorCoreInstance.report(
+        this.handlerReportError(
           'error',
           type,
           payload
@@ -137,7 +154,7 @@ export class ErrorMonitor {
         reason: event.reason,
         timestamp: Date.now(),
       }
-      this.sdkInstance.monitorCoreInstance.report(
+      this.handlerReportError(
         'error',
         type,
         payload
@@ -167,7 +184,7 @@ export class ErrorMonitor {
               duration: Date.now() - start,
               timestamp: Date.now(),
             }
-            this.sdkInstance.monitorCoreInstance.report(
+            this.handlerReportError(
               'error',
               type,
               payload
@@ -187,7 +204,7 @@ export class ErrorMonitor {
               duration,
               timestamp: Date.now(),
           }
-          this.sdkInstance.monitorCoreInstance.report(
+          this.handlerReportError(
             'error',
             type,
             payload
@@ -235,7 +252,7 @@ export class ErrorMonitor {
             duration,
             timestamp: Date.now(),
           }
-          self.sdkInstance.monitorCoreInstance.report(
+          self.handlerReportError(
             'error',
             type,
             payload
@@ -255,7 +272,7 @@ export class ErrorMonitor {
           duration,
           timestamp: Date.now(),
         }
-        self.sdkInstance.monitorCoreInstance.report(
+        self.handlerReportError(
           'error',
           type,
           payload
@@ -276,7 +293,7 @@ export class ErrorMonitor {
           duration,
           timestamp: Date.now(),
         }
-        self.sdkInstance.monitorCoreInstance.report(
+        self.handlerReportError(
           'error',
           type,
           payload  
