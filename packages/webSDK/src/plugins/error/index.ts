@@ -46,16 +46,51 @@ export class ErrorMonitor {
     this.initInterfaceError();
     this.initXhrError();
   }
+  private handlerReportError(
+    event_type: 'error',
+    event_name: MetricsName,
+    payload: Record<string, any>
+  ){
+    const errorId = payload.errorId;
+    if(this.seenErrorIds.has(errorId)){
+      return; //重复错误，跳过上报
+    }
+    this.seenErrorIds.has(errorId);
+    this.sdkCoreInstance.report(
+      event_type,
+      event_name,
+      payload
+    );
+  }
 
   //捕获同步js错误
   private initJsError(){  
     window.addEventListener('error', (event: ErrorEvent) => {
+      const type = getErrorType({event, isResource: false});
+      //如果是跨域脚本错误，单独上报并阻止默认
+      if(type === MetricsName.JS_CORS_ERROR) {
+        const pageURL = window.location.href;
+        const userAgent = navigator.userAgent;
+        const message = event.message;
+        const filename = event.filename || '';
+        const rawCtx = [type, pageURL, userAgent, message, filename].join('|');
+        const errorId = this.hashString(rawCtx);
+        const payload = {
+          errorId,
+          message,
+          pageURL,
+          userAgent,
+          timestamp: Date.now(),
+        };
+        this.handlerReportError('error',type,payload)
+        event.preventDefault();
+        return;
+      }
       //纯资源错误交给initResourceError
-      if(!event.error) {
+      if(type !== MetricsName.JS_ERROR) {
         return;
       }
       const { message, filename: source, lineno, colno, error } = event;
-      const type = getErrorType({event, isResource: false});
       const rawCtx = [type, source, lineno, colno].join('|');
       const errorId = this.hashString(rawCtx);
       //BasePayload
@@ -67,12 +102,11 @@ export class ErrorMonitor {
         colno,
         stack: error.stack
       };
-        this.sdkInstance.monitorCoreInstance.report(
+        this.handlerReportError(
           'error',
           type,
           payload
         );
-        if(type === MetricsName.JS_CORS_ERROR) {event.preventDefault();}
     },true);
   }
   //捕获资源加载错误
@@ -80,12 +114,13 @@ export class ErrorMonitor {
     window.addEventListener(
       "error",
       (event:Event) => {
+        const type = getErrorType({isResource:true});
+        if(type !== MetricsName.RESOURCE_ERROR){return};
         const target = event.target as HTMLElement;
         const url = (target as any).src || (target as any).href;
         if(!url){
           return;
         }
-        const type = getErrorType({isResource:true});
         const rawCtx = [type, target.tagName, url].join('|');
         const errorId = this.hashString(rawCtx);
         const payload = {
@@ -95,7 +130,7 @@ export class ErrorMonitor {
           outerHTML: target.outerHTML,
           timestamp: Date.now()
         }
-        this.sdkInstance.monitorCoreInstance.report(
+        this.handlerReportError(
           'error',
           type,
           payload
@@ -119,7 +154,7 @@ export class ErrorMonitor {
         reason: event.reason,
         timestamp: Date.now(),
       }
-      this.sdkInstance.monitorCoreInstance.report(
+      this.handlerReportError(
         'error',
         type,
         payload
@@ -149,7 +184,7 @@ export class ErrorMonitor {
               duration: Date.now() - start,
               timestamp: Date.now(),
             }
-            this.sdkInstance.monitorCoreInstance.report(
+            this.handlerReportError(
               'error',
               type,
               payload
@@ -169,7 +204,7 @@ export class ErrorMonitor {
               duration,
               timestamp: Date.now(),
           }
-          this.sdkInstance.monitorCoreInstance.report(
+          this.handlerReportError(
             'error',
             type,
             payload
@@ -217,7 +252,7 @@ export class ErrorMonitor {
             duration,
             timestamp: Date.now(),
           }
-          self.sdkInstance.monitorCoreInstance.report(
+          self.handlerReportError(
             'error',
             type,
             payload
@@ -237,7 +272,7 @@ export class ErrorMonitor {
           duration,
           timestamp: Date.now(),
         }
-        self.sdkInstance.monitorCoreInstance.report(
+        self.handlerReportError(
           'error',
           type,
           payload
@@ -258,7 +293,7 @@ export class ErrorMonitor {
           duration,
           timestamp: Date.now(),
         }
-        self.sdkInstance.monitorCoreInstance.report(
+        self.handlerReportError(
           'error',
           type,
           payload  
