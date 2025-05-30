@@ -50,12 +50,31 @@ export class ErrorMonitor {
   //捕获同步js错误
   private initJsError(){  
     window.addEventListener('error', (event: ErrorEvent) => {
+      const type = getErrorType({event, isResource: false});
+      //如果是跨域脚本错误，单独上报并阻止默认
+      if(type === MetricsName.JS_CORS_ERROR) {
+        const pageURL = window.location.href;
+        const userAgent = navigator.userAgent;
+        const message = event.message;
+        const filename = event.filename || '';
+        const rawCtx = [type, pageURL, userAgent, message, filename].join('|');
+        const errorId = this.hashString(rawCtx);
+        const payload = {
+          errorId,
+          message,
+          pageURL,
+          userAgent,
+          timestamp: Date.now(),
+        };
+        this.sdkCoreInstance.report('error',type,payload)
+        event.preventDefault();
+        return;
+      }
       //纯资源错误交给initResourceError
-      if(!event.error) {
+      if(type !== MetricsName.JS_ERROR) {
         return;
       }
       const { message, filename: source, lineno, colno, error } = event;
-      const type = getErrorType({event, isResource: false});
       const rawCtx = [type, source, lineno, colno].join('|');
       const errorId = this.hashString(rawCtx);
       //BasePayload
@@ -72,7 +91,6 @@ export class ErrorMonitor {
           type,
           payload
         );
-        if(type === MetricsName.JS_CORS_ERROR) {event.preventDefault();}
     },true);
   }
   //捕获资源加载错误
