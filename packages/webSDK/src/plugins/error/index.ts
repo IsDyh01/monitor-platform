@@ -22,6 +22,88 @@ function getErrorType(params: {
   return MetricsName.JS_ERROR;
 }
 
+export function proxyXhrHandler(loadHandler: (data: {
+  method: string,
+  url: string,
+  status?: number,
+  statusText?: string,
+  duration: number,
+  timestamp: number
+})=> void) {
+  const originalOpen = XMLHttpRequest.prototype.open;
+  const originalSend = XMLHttpRequest.prototype.send;
+  //拦截 open，缓存method/url
+  XMLHttpRequest.prototype.open = function (
+    this: XMLHttpRequest & { __method?: string; __url?: string},
+    method: string,
+    url: string,
+    async?: boolean,
+    username?: string | null,
+    password?: string | null
+  ) {
+    this.__method = method;
+    this.__url = url;
+    return originalOpen.apply(this, arguments as any);
+  };
+  //拦截send, 绑定loadend/error/timeout
+  XMLHttpRequest.prototype.send = function(this: any, body?: Document | BodyInit | null) {
+    const xhr = this as XMLHttpRequest & { __method?: string; __url?: string };
+    const start = Date.now();
+    const cleanup = () => {
+      xhr.removeEventListener('loadend', onLoadend);
+      xhr.removeEventListener('error', onError);
+      xhr.removeEventListener('timeout', onTimeout);
+    };
+    const onLoadend = () => {
+      const duration = Date.now() - start;
+      const method = xhr.__method || 'GET';
+      const url = xhr.__url || '';
+      const status = xhr.status;
+      const statusText = xhr.statusText;
+      if(status >= 400 || status === 0){
+        loadHandler({
+          method,
+          url,
+          status: status === 0 ? undefined: status,
+          statusText,
+          duration,
+          timestamp: Date.now(),
+        })
+      }
+      cleanup();
+    };
+    const onError = () => {
+      const duration = Date.now() - start;
+      loadHandler({
+        method: xhr.__method || 'GET',
+        url: xhr.__url || '',
+        status: 0,
+        statusText: 'timeout',
+        duration,
+        timestamp: Date.now(),
+      });
+      cleanup();
+    };
+    const onTimeout = () => {
+      const duration = Date.now() - start;
+      loadHandler({
+        method: xhr.__method || 'GET',
+        url: xhr.__url || '',
+        status: 0,
+        statusText: 'timeout',
+        duration,
+        timestamp: Date.now(),
+      });
+      cleanup();
+    }
+    xhr.addEventListener('loadend', onLoadend);
+    xhr.addEventListener('error', onLoadend);
+    xhr.addEventListener('timeout', onLoadend);
+
+    return originalSend.apply(xhr, arguments as any);
+  }
+}
+
 export class ErrorMonitor {
   private sdkCoreInstance: MonitorCore; // 监控核心实例
   private sdkInstance: WebSDK;
