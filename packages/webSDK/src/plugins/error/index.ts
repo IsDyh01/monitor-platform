@@ -303,95 +303,36 @@ export class ErrorMonitor {
   }
   //拦截 XMLHttpRequest
   private initXhrError() {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    const originalSend = XMLHttpRequest.prototype.send;
-    const self = this;
-    //拦截open，缓存method/url
-    (XMLHttpRequest.prototype as any).open = function(this: XMLHttpRequest, ...args: Parameters<XMLHttpRequest['open']>) {
-      const [method, url] = args;
-      (this as any).__method = args[0];
-      (this as any).__url = args[1];
-      return originalOpen.apply(this, args)
-    }
-    //拦截send，绑定事件
-    XMLHttpRequest.prototype.send = function(body?: any){
-      const xhr = this as XMLHttpRequest & { __method?: string; __url?: string };
-      const start = Date.now();
-      const onLoadend = () => {
-        const status = xhr.status;
-        //如果status >= 400 或 status === 0 (可能是跨域或网络错误)
-        if (status >= 400 || status === 0) {
-          const duration = Date.now() - start;
-          const type = MetricsName.HTTP_ERROR;
-          const rawCtx = [type, xhr.__url, xhr.__method, status === 0 ? 'network': String(status)].join('|');
-          const errorId = self.hashString(rawCtx);
-          const payload = {
-            errorId,
-            url: xhr.__url || '',
-            method: xhr.__method || 'GET',
-            status: status === 0 ? undefined : status,
-            statusText: xhr.statusText || undefined,
-            duration,
-            timestamp: Date.now(),
-          }
-          self.handlerReportError(
-            'error',
-            type,
-            payload
-          );
-          cleanup();
-        };
+    const loadHandler = (params: {
+      method: string,
+      url: string,
+      status?: number,
+      statusText?: string,
+      duration: number,
+      timestamp: number
+    }) => {
+      const {method, url, status, statusText, duration, timestamp } = params;
+      if(params.status !== undefined && params.status < 400 && params.status !== 0){
+        return
       }
-      const onError = () => {
-        const duration = Date.now() - start;
-        const type = MetricsName.HTTP_ERROR;
-        const rawCtx = [type, xhr.__url, xhr.__method, 'error'].join('|');
-        const errorId = self.hashString(rawCtx);
-        const payload = {
-          errorId,
-          url: xhr.__url || '',
-          method: xhr.__method || 'GET',
-          duration,
-          timestamp: Date.now(),
-        }
-        self.handlerReportError(
-          'error',
-          type,
-          payload
-        );
-        cleanup();
+      const rawCtx = [
+        MetricsName.HTTP_ERROR,
+        url,
+        method,
+        status === 0 ? 'network' : String(status)
+      ].join('|');
+      const errorId = this.hashString(rawCtx);
+      const payload = {
+        errorId,
+        url,
+        method,
+        status,
+        statusText,
+        duration,
+        timestamp
       };
-      const onTimeout = () => {
-        const duration = Date.now() - start;
-        const type = MetricsName.HTTP_ERROR;
-        const rawCtx = [type, xhr.__url, xhr.__method, 'timeout'].join('|');
-        const errorId = self.hashString(rawCtx);
-        const payload = {
-          errorId,
-          url: xhr.__url || '',
-          method: xhr.__method || 'GET',
-          status: 0,
-          statusText: 'timeout',
-          duration,
-          timestamp: Date.now(),
-        }
-        self.handlerReportError(
-          'error',
-          type,
-          payload  
-        );
-        cleanup();
-      };
-      const cleanup = () => {
-        xhr.removeEventListener('loadend', onLoadend);
-        xhr.removeEventListener('error', onError);
-        xhr.removeEventListener('timeout', onTimeout);
-      };
-      xhr.addEventListener('loadend', onLoadend);
-      xhr.addEventListener('error', onError);
-      xhr.addEventListener('timeout', onTimeout);
-
-      return originalSend.apply(this, arguments as any);
+      this.handlerReportError('error', MetricsName.HTTP_ERROR, payload);
     }
+    proxyXhrHandler(loadHandler);
   }
 }
