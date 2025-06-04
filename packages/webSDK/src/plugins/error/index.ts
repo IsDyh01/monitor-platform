@@ -137,7 +137,7 @@ export class ErrorMonitor {
     if(this.seenErrorIds.has(errorId)){
       return; //重复错误，跳过上报
     }
-    this.seenErrorIds.has(errorId);
+    this.seenErrorIds.add(errorId);
     this.sdkCoreInstance.report(
       event_type,
       event_name,
