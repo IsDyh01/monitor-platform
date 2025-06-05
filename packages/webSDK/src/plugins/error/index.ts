@@ -109,6 +109,60 @@ export function proxyXhrHandler(loadHandler: (data: {
   }
 }
 
+export function proxyFetchHandler(loadHandler: (data: {
+  method: string,
+  url: string,
+  status?: number,
+  statusText?: string,
+  duration: number,
+  timestamp: number
+}) => void ): void {
+  //防止重复劫持
+  if((window as any).__hasFetchProxy) return;
+  (window as any).__hasFetchProxy = true;
+  const originalFetch = window.fetch.bind(window);
+    const fetchProxy =new Proxy (originalFetch, {
+      apply: (target, thisArg, args: Parameters<typeof fetch>) => {
+        const start = Date.now()
+        const resource = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+        const method = (args[1] as RequestInit)?.method || 'GET';
+        return target.apply(thisArg, args,)
+        .then((response: Response) => {
+          const duration = Date.now() - start;
+          if(!response.ok || response.status === 0) {
+            loadHandler({
+              method,
+              url: resource,
+              status: response.status === 0 ? undefined : response.status,
+              statusText: response.statusText,
+              duration,
+              timestamp: Date.now(),
+            });
+          }
+            return response;
+        })
+        .catch((err: any) => {
+          const duration = Date.now() -start;
+          //网络或CORS错误
+          loadHandler({
+            method,
+            url: resource,
+            status: undefined,
+            statusText: undefined,
+            duration,
+            timestamp: Date.now(),
+          })
+          return Promise.reject(err);
+        }); 
+      }
+    });
+    Object.defineProperty(window, 'fetch', {
+      value: fetchProxy,
+      writable: true,
+      configurable: true,
+    });
+}
+
 export class ErrorMonitor {
   private sdkCoreInstance: MonitorCore; // 监控核心实例
   private sdkInstance: WebSDK;
