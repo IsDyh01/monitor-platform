@@ -184,7 +184,7 @@ export class ErrorMonitor {
     this.initJsError();
     this.initResourceError();
     this.initPromiseError();
-    this.initInterfaceError();
+    this.initFetchError();
     this.initXhrError();
   }
   private handlerReportError(
@@ -302,63 +302,39 @@ export class ErrorMonitor {
       );
     });
   }
-  //捕获接口异常
-  private initInterfaceError(){
-    const originalFetch = window.fetch.bind(window);
-    const fetchProxy =new Proxy (originalFetch, {
-      apply: (target, thisArg, args: Parameters<typeof fetch>) => {
-        const start = Date.now()
-        const resource = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
-        const method = (args[1] as RequestInit)?.method || 'GET';
-        return target.apply(thisArg, args,)
-        .then((response: Response) => {
-          const type = MetricsName.HTTP_ERROR;
-          const rawCtx = [type, resource, method, response.status].join('|');
-          const errorId = this.hashString(rawCtx);
-          if(!response.ok ) {
-            const payload = {
-              errorId,
-              url: resource,
-              method,
-              status: response.status,
-              statusText: response.statusText,
-              duration: Date.now() - start,
-              timestamp: Date.now(),
-            }
-            this.handlerReportError(
-              'error',
-              type,
-              payload
-            );
-          };
-            return response;
-        })
-        .catch((err: any) => {
-          const duration = Date.now() -start;
-          const type = MetricsName.HTTP_ERROR;
-          const rawCtx = [type, resource, method, err.message].join('|');
-          const errorId = this.hashString(rawCtx);
-          const payload = {
-              errorId,
-              url: resource,
-              method,
-              duration,
-              timestamp: Date.now(),
-          }
-          this.handlerReportError(
-            'error',
-            type,
-            payload
-          );
-          return Promise.reject(err);
-        }); 
+  //捕获fetch异常
+  private initFetchError(){
+    const loadHandler = (params: {
+      method: string,
+      url: string,
+      status?: number,
+      statusText?: string,
+      duration: number,
+      timestamp: number
+    }) => {
+      const {method, url, status, statusText, duration, timestamp } = params;
+      if(status !== undefined && status < 400 && status !== 0 ){
+        return
       }
-    });
-    Object.defineProperty(window, 'fetch', {
-      value: fetchProxy,
-      writable: true,
-      configurable: true,
-    });
+      const rawCtx = [
+        MetricsName.HTTP_ERROR,
+        url,
+        method,
+        status === 0 ? 'network' : String(status)
+      ].join('|');
+      const errorId = this.hashString(rawCtx);
+      const payload = {
+        errorId,
+        url,
+        method,
+        status,
+        statusText,
+        duration,
+        timestamp
+      };
+      this.handlerReportError('error', MetricsName.HTTP_ERROR, payload);
+    }
+    proxyXhrHandler(loadHandler);
   }
   //拦截 XMLHttpRequest
   private initXhrError() {
