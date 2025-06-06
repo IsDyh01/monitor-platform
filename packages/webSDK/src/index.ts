@@ -32,7 +32,7 @@ class WebSDK {
 
     // 初始化监控插件
     new PerformanceMonitor(this);
-    new ErrorMonitor(this,this.monitorCoreInstance)
+    new ErrorMonitor(this)
     new BehaviorMonitor(this);
   }
 

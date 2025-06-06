@@ -77,3 +77,14 @@ export interface TrackConfig {
   maxRetries?: number;
   failedRetryDelay?: number; // 失败重试间隔（默认 5 * 60 * 1000ms）
 }
+
+export interface HttpHandlerPayloadType {
+  method: string,
+  url: string,
+  status?: number,
+  statusText?: string,
+  startTime: number
+  endTime: number,
+  body?: any;
+  response?: any;
+}
