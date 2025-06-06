@@ -1,11 +1,12 @@
-import MonitorCore from "../../core";
 import WebSDK from "../../index";
+import { HttpHandlerPayloadType } from "../../interface";
 enum MetricsName {
   JS_ERROR = 'js_error',
   JS_CORS_ERROR = 'js_cors_error',
   RESOURCE_ERROR = 'resource_error',
   PROMISE_ERROR = 'promise_error',
-  HTTP_ERROR = 'http_error',
+  XHR_ERROR = 'xhr_error',
+  FETCH_ERROR = 'fetch_error'
 }
 //判断js_error  js_cors_error  resource_error
 function getErrorType(params: {
@@ -22,149 +23,89 @@ function getErrorType(params: {
   return MetricsName.JS_ERROR;
 }
 
-export function proxyXhrHandler(loadHandler: (data: {
-  method: string,
-  url: string,
-  status?: number,
-  statusText?: string,
-  duration: number,
-  timestamp: number
-})=> void) {
+export function proxyXhrHandler(loadHandler: (data: HttpHandlerPayloadType)=> void) {
   if('XMLHttpRequest' in window && typeof window.XMLHttpRequest === 'function'){
     const oXMLHttpRequest = window.XMLHttpRequest;
+    let metrics: HttpHandlerPayloadType = {} as HttpHandlerPayloadType;
     (window as any).XMLHttpRequest = function() {
       const xhr = new oXMLHttpRequest();
       const {open, send} = xhr;
+      
       //拦截 open，缓存method/url
       xhr.open = function (
-        this: XMLHttpRequest & { __method?: string; __url?: string},
         method: string,
         url: string,
         async?: boolean,
         username?: string | null,
         password?: string | null
       ) {
-        this.__method = method;
-        this.__url = url;
-        return xhr.open.apply(this, arguments as any);
+        metrics.method = method;
+        metrics.url = url;
+        
+        return open.apply(xhr, arguments as any);
       };
       //拦截send, 绑定loadend/error/timeout
-      xhr.send = function(this: any, body?: Document | BodyInit | null) {
-        const xhr = this as XMLHttpRequest & { __method?: string; __url?: string };
-        const start = Date.now();
-        const cleanup = () => {
-          xhr.removeEventListener('loadend', onLoadend);
-          xhr.removeEventListener('error', onError);
-          xhr.removeEventListener('timeout', onTimeout);
-        };
-        const onLoadend = () => {
-          const duration = Date.now() - start;
-          const method = xhr.__method || 'GET';
-          const url = xhr.__url || '';
-          const status = xhr.status;
-          const statusText = xhr.statusText;
-          if(status >= 400 || status === 0){
-            loadHandler({
-              method,
-              url,
-              status: status === 0 ? undefined: status,
-              statusText,
-              duration,
-              timestamp: Date.now(),
-            })
-          }
-          cleanup();
-        };
-        const onError = () => {
-          const duration = Date.now() - start;
-          loadHandler({
-            method: xhr.__method || 'GET',
-            url: xhr.__url || '',
-            status: 0,
-            statusText: 'timeout',
-            duration,
-            timestamp: Date.now(),
-          });
-          cleanup();
-        };
-        const onTimeout = () => {
-          const duration = Date.now() - start;
-          loadHandler({
-            method: xhr.__method || 'GET',
-            url: xhr.__url || '',
-            status: 0,
-            statusText: 'timeout',
-            duration,
-            timestamp: Date.now(),
-          });
-          cleanup();
-        }
-        xhr.addEventListener('loadend', onLoadend);
-        xhr.addEventListener('error', onLoadend);
-        xhr.addEventListener('timeout', onLoadend);
+      xhr.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
+        metrics.startTime = new Date().getTime();
+        metrics.body = body;
 
-        return xhr.send.apply(xhr, arguments as any);
+        return send.apply(xhr, arguments as any);
       }
+
+      xhr.addEventListener('loadend', () => {
+        metrics.endTime = new Date().getTime();
+        metrics.status = xhr.status;
+        metrics.statusText = xhr.statusText;
+        metrics.response = xhr.response;
+        if(typeof loadHandler === 'function') {
+          loadHandler(metrics);
+        }
+      })
+
+      return xhr;
     }
   }
 }
 
-export function proxyFetchHandler(loadHandler: (data: {
-  method: string,
-  url: string,
-  status?: number,
-  statusText?: string,
-  duration: number,
-  timestamp: number
-}) => void ): void {
-  //防止重复劫持
-  if((window as any).__hasFetchProxy) return;
-  (window as any).__hasFetchProxy = true;
-  const originalFetch = window.fetch.bind(window);
-    const fetchProxy =new Proxy (originalFetch, {
-      apply: (target, thisArg, args: Parameters<typeof fetch>) => {
-        const start = Date.now()
-        const resource = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
-        const method = (args[1] as RequestInit)?.method || 'GET';
-        return target.apply(thisArg, args,)
-        .then((response: Response) => {
-          const duration = Date.now() - start;
-          if(!response.ok || response.status === 0) {
-            loadHandler({
-              method,
-              url: resource,
-              status: response.status === 0 ? undefined : response.status,
-              statusText: response.statusText,
-              duration,
-              timestamp: Date.now(),
-            });
-          }
-            return response;
-        })
-        .catch((err: any) => {
-          const duration = Date.now() -start;
-          //网络或CORS错误
-          loadHandler({
-            method,
-            url: resource,
-            status: undefined,
-            statusText: undefined,
-            duration,
-            timestamp: Date.now(),
-          })
-          return Promise.reject(err);
-        }); 
-      }
+export function proxyFetchHandler(loadHandler: (data: HttpHandlerPayloadType) => void ): void {
+  const oFetch = window.fetch;
+  (window as any).fetch = async (input: any, init: RequestInit) => {
+    
+    // init 是用户手动传入的 fetch 请求互数据，包括了 method、body、headers，要做统一拦截数据修改，直接改init即可
+    let metrics = {} as HttpHandlerPayloadType;
+
+    metrics.method = init?.method || '';
+    metrics.url = (input && typeof input !== 'string' ? input?.url : input) || ''; // 请求的url
+    metrics.body = init?.body || '';
+    metrics.startTime = new Date().getTime();
+
+    return oFetch.call(window, input, init).then(async (response) => {
+      // clone 出一个新的 response,再用其做.text(),避免 body stream already read 问题
+      const res = response.clone();
+      metrics = {
+        ...metrics,
+        status: res.status,
+        statusText: res.statusText,
+        response: await res.text(),
+        endTime: new Date().getTime(),
+      };
+      if (typeof loadHandler === 'function') loadHandler(metrics);
+      return response;
+    }).catch((error: any) => {
+      metrics = {
+        ...metrics,
+        status: -1,
+        statusText: '',
+        response: '',
+        endTime: new Date().getTime(),
+      };
+      if (typeof loadHandler === 'function') loadHandler(metrics);
+      return Promise.reject(error)
     });
-    Object.defineProperty(window, 'fetch', {
-      value: fetchProxy,
-      writable: true,
-      configurable: true,
-    });
+  };
 }
 
 export class ErrorMonitor {
-  private sdkCoreInstance: MonitorCore; // 监控核心实例
   private sdkInstance: WebSDK;
   private seenErrorIds = new Set<string>();//用来存已经上报过的errorId，防止重复上报
   private hashString(str: string): string{
@@ -176,8 +117,7 @@ export class ErrorMonitor {
     return 'e' + Math.abs(hash).toString(36);
   }
   
-  constructor(sdkInstance: WebSDK, sdkCoreInstance: MonitorCore) {
-    this.sdkCoreInstance = sdkCoreInstance;
+  constructor(sdkInstance: WebSDK) {
     this.sdkInstance = sdkInstance;
     // 初始化错误监控
     //初始化监听
@@ -197,7 +137,8 @@ export class ErrorMonitor {
       return; //重复错误，跳过上报
     }
     this.seenErrorIds.add(errorId);
-    this.sdkCoreInstance.report(
+    
+    this.sdkInstance.monitorCoreInstance.report(
       event_type,
       event_name,
       payload
@@ -286,8 +227,8 @@ export class ErrorMonitor {
       const type = MetricsName.PROMISE_ERROR;
       const reason = event.reason;
       const message = reason?.message ?? String(reason);
-      const stack = reason?.stack ?? "";
-      const rawCtx = [type, message, stack].join("|");
+
+      const rawCtx = [type, message].join("|");
       const errorId = this.hashString(rawCtx);
       const payload = {
         errorId,
@@ -304,20 +245,15 @@ export class ErrorMonitor {
   }
   //捕获fetch异常
   private initFetchError(){
-    const loadHandler = (params: {
-      method: string,
-      url: string,
-      status?: number,
-      statusText?: string,
-      duration: number,
-      timestamp: number
-    }) => {
-      const {method, url, status, statusText, duration, timestamp } = params;
-      if(status !== undefined && status < 400 && status !== 0 ){
+    
+    const loadHandler = (params: HttpHandlerPayloadType) => {
+      
+      const {method, url, status, statusText, startTime, endTime, body, response } = params;
+      if(status !== undefined && status < 400 && status !== -1 ){
         return
       }
       const rawCtx = [
-        MetricsName.HTTP_ERROR,
+        MetricsName.FETCH_ERROR,
         url,
         method,
         status === 0 ? 'network' : String(status)
@@ -329,32 +265,28 @@ export class ErrorMonitor {
         method,
         status,
         statusText,
-        duration,
-        timestamp
+        startTime,
+        endTime,
+        body,
+        response
       };
-      this.handlerReportError('error', MetricsName.HTTP_ERROR, payload);
+      this.handlerReportError('error', MetricsName.FETCH_ERROR, payload);
     }
-    proxyXhrHandler(loadHandler);
+    proxyFetchHandler(loadHandler);
   }
   //拦截 XMLHttpRequest
   private initXhrError() {
-    const loadHandler = (params: {
-      method: string,
-      url: string,
-      status?: number,
-      statusText?: string,
-      duration: number,
-      timestamp: number
-    }) => {
-      const {method, url, status, statusText, duration, timestamp } = params;
-      if(params.status !== undefined && params.status < 400 && params.status !== 0){
+    const loadHandler = (params: HttpHandlerPayloadType) => {
+      const {method, url, status, statusText, startTime, endTime, response, body } = params;
+      // 如果状态码为400以下都相当于请求成功，除了0 网络失败 -1 请求中断
+      if(status !== undefined && status < 400 && status !== 0 && status !== -1){
         return
       }
       const rawCtx = [
-        MetricsName.HTTP_ERROR,
+        MetricsName.XHR_ERROR,
         url,
         method,
-        status === 0 ? 'network' : String(status)
+        status === 0 ? 'network' : status === -1 ? 'abort' : String(status)
       ].join('|');
       const errorId = this.hashString(rawCtx);
       const payload = {
@@ -363,10 +295,12 @@ export class ErrorMonitor {
         method,
         status,
         statusText,
-        duration,
-        timestamp
+        startTime, 
+        endTime, 
+        response,
+        body
       };
-      this.handlerReportError('error', MetricsName.HTTP_ERROR, payload);
+      this.handlerReportError('error', MetricsName.XHR_ERROR, payload);
     }
     proxyXhrHandler(loadHandler);
   }
