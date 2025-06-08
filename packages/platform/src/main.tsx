@@ -12,6 +12,11 @@ const config = {
 const sdk = new WebSDK(config);
 console.log(sdk);
 
+sdk.customEventDataReport('test', {
+  name: 'test',
+  age: 18
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
