@@ -8,6 +8,9 @@ import WebSDK from "@monitor-platform/sdk";
 const config = {
   project_id: "1234567890",
   url: "http://localhost:3000/api/getData", // 上报地址
+  clickEventOptions: {
+    targetTag: ["span"]
+  }
 };
 const sdk = new WebSDK(config);
 console.log(sdk);
