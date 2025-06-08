@@ -1,25 +1,27 @@
-import MonitorCore from "../../core";
 import { ClickMonitor } from "./ClickMonitor";
 import { ScrollMonitor } from "./ScrollMonitor";
 import { PageLifeCycleMonitor } from "./PageLifeCycleMonitor";
 import WebSDK from "../..";
 import CustomEvent from "./CustomEvent";
+import { ClickEventOptions } from "../../interface";
 export class BehaviorMonitor {
   public clickMonitor: ClickMonitor| undefined;
   public scrollMonitor: ScrollMonitor| undefined;
   public pageLifeCycleMonitor: PageLifeCycleMonitor| undefined;
   public customEvent: CustomEvent| undefined;
   private sdkInstance: WebSDK;
+  private options: ClickEventOptions;
 
-  constructor(sdkInstance:WebSDK ) {
-  this.sdkInstance = sdkInstance;
-  // 初始化所有监控器
-  this.initAllMonitors();
+  constructor(sdkInstance:WebSDK, options?: ClickEventOptions) {
+    this.sdkInstance = sdkInstance;
+    this.options = options || {};
+    // 初始化所有监控器
+    this.initAllMonitors();
   }
   private initAllMonitors(): void {
     this. pageLifeCycleMonitor = new PageLifeCycleMonitor(this.sdkInstance);   
      // 页面生命周期指标
-    this.clickMonitor = new ClickMonitor(this.sdkInstance);
+    this.clickMonitor = new ClickMonitor(this.sdkInstance, this.options);
     this.scrollMonitor = new ScrollMonitor(this.sdkInstance);
     this.customEvent = new CustomEvent(this.sdkInstance);
   }

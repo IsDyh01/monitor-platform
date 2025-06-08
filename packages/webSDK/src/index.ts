@@ -36,7 +36,7 @@ class WebSDK {
     // 初始化监控插件
     this.performanceMonitorInstance = new PerformanceMonitor(this);
     this.errorMonitorInstance = new ErrorMonitor(this)
-    this.behaviorMonitorInstance = new BehaviorMonitor(this);
+    this.behaviorMonitorInstance = new BehaviorMonitor(this, this.options.clickEventOptions);
   }
 
   // 提供自定义事件上报方法

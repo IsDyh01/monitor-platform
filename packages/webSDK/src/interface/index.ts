@@ -1,8 +1,16 @@
 import { EventType } from "../constance";
+
+export interface ClickEventOptions {
+  allTarget?: boolean;
+  targetId?: string[];
+  targetClass?: string[];
+  targetTag?: string[];
+}
 export interface WebSDKOptions {
   project_id: string; // 项目id
   url: string; // 上报服务器地址
   user_id?: string; // 用户id 如果不传 sdk自动生成
+  clickEventOptions?: ClickEventOptions;
 }
 
 export interface StaticData {
