@@ -3,11 +3,12 @@ import { ClickMonitor } from "./ClickMonitor";
 import { ScrollMonitor } from "./ScrollMonitor";
 import { PageLifeCycleMonitor } from "./PageLifeCycleMonitor";
 import WebSDK from "../..";
-
+import CustomEvent from "./CustomEvent";
 export class BehaviorMonitor {
   public clickMonitor: ClickMonitor| undefined;
   public scrollMonitor: ScrollMonitor| undefined;
   public pageLifeCycleMonitor: PageLifeCycleMonitor| undefined;
+  public customEvent: CustomEvent| undefined;
   private sdkInstance: WebSDK;
 
   constructor(sdkInstance:WebSDK ) {
@@ -20,6 +21,7 @@ export class BehaviorMonitor {
      // 页面生命周期指标
     this.clickMonitor = new ClickMonitor(this.sdkInstance);
     this.scrollMonitor = new ScrollMonitor(this.sdkInstance);
+    this.customEvent = new CustomEvent(this.sdkInstance);
   }
   // 可选：提供统一销毁方法
     public destroy() {
@@ -33,5 +35,10 @@ export class BehaviorMonitor {
       if (this.pageLifeCycleMonitor && typeof (this.pageLifeCycleMonitor as any).destroy === "function") {
         (this.pageLifeCycleMonitor as any).destroy();
       }
+    }
+
+    // 提供自定义事件上报方法
+    public customEventDataReport(event_name: string, payload: Record<string, any>) {
+      this.customEvent?.customEventDataReport(event_name, payload);
     }
 }

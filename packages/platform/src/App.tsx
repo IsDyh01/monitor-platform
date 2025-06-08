@@ -29,12 +29,6 @@ const App: React.FC = () => {
     
   ];
 
-  fetch('http://localhost:8080/api/v1/performance/query',{
-    method:'GET',
-    headers:{
-      'Content-Type':'application/json'
-    }
-  })
   return (
     <Layout >
       <Sider width={220} theme="dark" style={{ height: '100vh'}} >
