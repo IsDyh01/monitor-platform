@@ -135,6 +135,7 @@ class Tracker {
       return;
     }
     const batchSize = this.trackConfig.batch?.maxQueueSize || 20;
+    
     if (this.batchQueue.length >= batchSize) {
       const batchData = this.batchQueue.splice(0, batchSize);
       // this.sendWithRetry(batchData);
@@ -159,7 +160,9 @@ class Tracker {
       clearTimeout(this.batchTimer);
     }
     this.batchTimer = setTimeout(() => {
-      this.flushBatch();
+      const batchData = this.batchQueue.splice(0, batchSize);
+      
+      this.sendWithRetry(batchData);
     }, this.trackConfig.batch?.delay || 5000);
   }
 
