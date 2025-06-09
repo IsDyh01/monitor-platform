@@ -1,7 +1,6 @@
 import mongoose from 'mongoose'
-import {DBHOST,DBPORT,DBNAME}  from '../config/config'
-import express from 'express'
-const app=express()
+import {DBHOST,DBPORT,DBNAME,USER,PASSWORD,AUTHSOURCE}  from '../config/config'
+
 export default async function (success:Function,error:Function){
   if(typeof error!=='function'){
     error=function(){
@@ -10,8 +9,8 @@ export default async function (success:Function,error:Function){
   }
   try{
     
-    await mongoose.connect(`mongodb://${DBHOST}:${DBPORT}/${DBNAME}`)
-    console.log('连接成功')
+    await mongoose.connect(`mongodb://${USER}:${PASSWORD}@${DBHOST}:${DBPORT}/${DBNAME}?authSource=${AUTHSOURCE}`)
+    console.log('连接数据库成功')
     success();
    
     

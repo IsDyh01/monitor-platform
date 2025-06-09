@@ -1,14 +1,22 @@
-import express, { Router, Request, Response } from "express";
-import cors from "cors";
-import registerRoutes from "./routes";
-const app = express();
+import express from 'express'
+import cors from 'cors'
+import registerRoutes from './routes'
+import db from '../db/db'
 
-app.use(cors({})); //跨域
-app.use(express.json()); //解析json数据
-app.use(express.text({ type: "*/*" })); // 解析sendBeacon数据
+db(()=>{
+    const app=express()
 
-registerRoutes(app); //注册路由
+    app.use(cors({}))  //跨域
+    app.use(express.json()) //解析json数据
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+    registerRoutes(app) //注册路由
+    
+
+    app.listen(3000,()=>{
+        console.log('Server is running on port 3000')
+})
+},()=>{
+    console.log('数据库连接失败')
+}
+)
+
