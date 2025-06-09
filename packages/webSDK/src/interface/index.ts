@@ -1,8 +1,16 @@
 import { EventType } from "../constance";
+
+export interface ClickEventOptions {
+  allTarget?: boolean;
+  targetId?: string[];
+  targetClass?: string[];
+  targetTag?: string[];
+}
 export interface WebSDKOptions {
   project_id: string; // 项目id
   url: string; // 上报服务器地址
   user_id?: string; // 用户id 如果不传 sdk自动生成
+  clickEventOptions?: ClickEventOptions;
 }
 
 export interface StaticData {
@@ -76,4 +84,15 @@ export interface TrackConfig {
   /** 发送失败时的最大重试次数（默认 3） */
   maxRetries?: number;
   failedRetryDelay?: number; // 失败重试间隔（默认 5 * 60 * 1000ms）
+}
+
+export interface HttpHandlerPayloadType {
+  method: string,
+  url: string,
+  status?: number,
+  statusText?: string,
+  startTime: number
+  endTime: number,
+  body?: any;
+  response?: any;
 }

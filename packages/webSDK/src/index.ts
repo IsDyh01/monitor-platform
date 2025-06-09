@@ -10,6 +10,9 @@ import { WebSDKOptions, User, StaticData } from "./interface";
 
 class WebSDK {
   private options: WebSDKOptions;
+  private behaviorMonitorInstance: BehaviorMonitor| undefined;
+  private performanceMonitorInstance: PerformanceMonitor| undefined;
+  private errorMonitorInstance: ErrorMonitor| undefined;
   sessionStorage: ReturnType<typeof getStorage>;
   localStorage: ReturnType<typeof getStorage>;
   private staticData: StaticData; // 静态数据 可以在初始化sdk时直接获取并存储 后续不需要改变
@@ -31,9 +34,14 @@ class WebSDK {
     );
 
     // 初始化监控插件
-    new PerformanceMonitor();
-    new ErrorMonitor();
-    new BehaviorMonitor();
+    this.performanceMonitorInstance = new PerformanceMonitor(this);
+    this.errorMonitorInstance = new ErrorMonitor(this)
+    this.behaviorMonitorInstance = new BehaviorMonitor(this, this.options.clickEventOptions);
+  }
+
+  // 提供自定义事件上报方法
+  public customEventDataReport(event_name: string, payload: Record<string, any>) {
+    this.behaviorMonitorInstance?.customEventDataReport(event_name, payload);
   }
 
   // 获取项目id
