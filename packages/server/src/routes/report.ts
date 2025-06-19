@@ -3,10 +3,18 @@ import mongoose from 'mongoose'
 import {COLLECTIONNAME} from '../../config/config'
 const router=Router()
 
+
+
 router.post('/', (req:Request, res:Response) => {
-  mongoose.connection.collection(`${COLLECTIONNAME}`).insertMany(req.body)
+  const data=req.body
+  data.forEach((element:any) => {
+   if(['performance' ,'behavior' , 'error' , 'custom'].includes(element.event_type)){
+      mongoose.connection.collection(`${COLLECTIONNAME}`).insertOne(element)
+   }
+  })
+  res.status(200).send({status:'success',message:'数据已发送'})
   console.log('数据已发送')
-  res.send({status:'success',message:'数据已保存'})
+  
 })
 
 export default router
