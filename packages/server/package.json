@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon src/server.ts"
+    "dev": "nodemon ./src/server.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,12 +14,15 @@
   "devDependencies": {
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
+    "@types/node": "^22.15.21",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.15.1",
     "nodemon": "^3.1.10"
   }
 }
